@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>TuneFree 使用说明</title>
+	<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #1e293b;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            overflow: hidden;
+            padding: 32px 28px;
+        }
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            font-size: 1.1rem;
+            color: #64748b;
+            margin-bottom: 32px;
+            border-left: 4px solid #3b82f6;
+            padding-left: 16px;
+        }
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 32px 0 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        h2::before {
+            content: "";
+            display: inline-block;
+            width: 6px;
+            height: 24px;
+            background: #3b82f6;
+            border-radius: 12px;
+        }
+        h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 24px 0 12px;
+            color: #0f172a;
+        }
+        p, li {
+            color: #334155;
+            margin-bottom: 12px;
+        }
+        ul, ol {
+            padding-left: 24px;
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 6px;
+        }
+        .card {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 0px 10px 10px 15px;
+            margin: 12px 0;
+            border: 1px solid #e2e8f0;
+        }
+        code {
+            background: #eef2f6;
+            padding: 3px 8px;
+            border-radius: 8px;
+            font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+            font-size: 0.9em;
+            color: #2563eb;
+        }
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 16px;
+            overflow-x: auto;
+            font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+            font-size: 0.9rem;
+            margin: 20px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+        th {
+            background: #f1f5f9;
+            font-weight: 600;
+            text-align: left;
+            padding: 12px 16px;
+            color: #1e293b;
+        }
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            background: white;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        .note {
+			background-color: #ff0000;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin: 24px 0;
+        }
+        .note p {
+            margin-bottom: 0;
+            color: #ffffff;
+        }
+        .badge {
+            display: inline-block;
+            background: #e6f7e6;
+            color: #2e7d32;
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 4px 12px;
+            border-radius: 30px;
+            margin-right: 8px;
+        }
+        footer {
+            margin-top: 48px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            border-top: 1px dashed #e2e8f0;
+            padding-top: 24px;
+        }
+        .footer-heart {
+            color: #f43f5e;
+        }
+        @media (max-width: 600px) {
+            .container { padding: 20px 16px; }
+            h1 { font-size: 1.8rem; }
+            table { display: block; overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 TuneFree</h1>
+        <div class="subtitle">将 QQ音乐加密文件 (.mflac) 一键转换为 MP3</div>
+
+        <p><strong>TuneFree</strong> 是一款专为 QQ音乐下载的加密音频文件设计的转换工具。它能够自动解密文件，并将其转换为通用的 MP3 格式，整个过程无需手动干预，转换完成后自动删除中间文件，只保留最终的 MP3 在 <code>output</code> 文件夹中。</p>
+
+        <h2>✨ 功能特点</h2>
+        <ul>
+            <li><span class="badge">一键转换</span> 双击运行，自动处理当前文件夹（及子文件夹）中的所有 <code>.mflac</code> 文件。</li>
+            <li><span class="badge">自动清理</span> 转换完成后，中间产物 <code>.flac</code> 文件会被自动删除，只保留 MP3。</li>
+            <li><span class="badge">自定义输出</span> 可通过命令行参数指定输入/输出目录和 MP3 比特率。</li>
+            <li><span class="badge">轻量便携</span> 单个 <code>.exe</code> 文件，无需安装，内置 ffmpeg 和必要的解密脚本。</li>
+        </ul>
+
+        <h2>📋 系统要求</h2>
+        <ul>
+            <li><strong>操作系统: </strong>Windows 10 / 11（64位）</li>
+            <li><strong>运行环境: </strong>必须提前启动 <strong>QQ音乐电脑客户端</strong> 并保持运行状态（程序需要注入进程进行解密）。</li>
+            <li><strong>磁盘空间: </strong>至少 100MB 可用空间（用于临时文件）。</li>
+        </ul>
+
+        <div class="note">
+            <p>⚠️ <strong>重要: </strong> 解密过程依赖 QQMusic.exe 进程，如果未启动程序，会提示“未找到 QQMusic.exe 进程”并退出。所以，请务必先打开 QQ音乐客户端 ，再运行本工具。</p>
+        </div>
+		
+		        <h2>🔄 处理流程</h2>
+		        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin: 30px 0;">
+		            <div style="flex: 1 1 160px; text-align: center;">
+		                <div style="background: #3b82f6; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-weight: bold; font-size: 1.5rem;">1</div>
+		                <h3 style="margin: 0 0 8px;">读取文件</h3>
+		                <p style="font-size: 0.95rem; color: #475569;">自动扫描输入目录中的所有 .mflac 文件</p>
+		            </div>
+		            <div style="flex: 0 0 20px; align-self: center; font-size: 1.5rem; color: #94a3b8;">→</div>
+		            <div style="flex: 1 1 160px; text-align: center;">
+		                <div style="background: #3b82f6; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-weight: bold; font-size: 1.5rem;">2</div>
+		                <h3 style="margin: 0 0 8px;">解密</h3>
+		                <p style="font-size: 0.95rem; color: #475569;">通过 Frida 注入 QQMusic 进程，解密为 FLAC</p>
+		            </div>
+		            <div style="flex: 0 0 20px; align-self: center; font-size: 1.5rem; color: #94a3b8;">→</div>
+		            <div style="flex: 1 1 160px; text-align: center;">
+		                <div style="background: #3b82f6; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-weight: bold; font-size: 1.5rem;">3</div>
+		                <h3 style="margin: 0 0 8px;">转码 MP3</h3>
+		                <p style="font-size: 0.95rem; color: #475569;">调用 ffmpeg 将 FLAC 转换为 MP3</p>
+		            </div>
+		            <div style="flex: 0 0 20px; align-self: center; font-size: 1.5rem; color: #94a3b8;">→</div>
+		            <div style="flex: 1 1 160px; text-align: center;">
+		                <div style="background: #3b82f6; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-weight: bold; font-size: 1.5rem;">4</div>
+		                <h3 style="margin: 0 0 8px;">清理输出</h3>
+		                <p style="font-size: 0.95rem; color: #475569;">删除临时 FLAC，最终 MP3 保存在 output 文件夹</p>
+		            </div>
+		        </div>
+				<p style="text-align:center; color:#64748b; margin-top:8px;">程序自动处理流程，无需用户干预</p>
+
+        <h2>🚀 快速上手</h2>
+        <ol>
+            <li><strong>获取程序: </strong>将 <code>TuneFree.exe</code> 放在存放 <code>.mflac</code> 文件的文件夹中（例如 <code>D:\我的音乐</code>）。</li>
+            <li><strong>启动 QQ音乐: </strong>打开 QQ音乐客户端，登录你的账号，保持它在后台运行（不需要播放歌曲）。</li>
+            <li><strong>双击运行: </strong>双击 <code>TuneFree.exe</code>，会弹出一个命令行窗口，显示处理进度。等待窗口自动关闭，处理即完成。</li>
+            <li><strong>获取 MP3: </strong>在 <code>TuneFree.exe</code> 所在目录下，会生成一个名为 <code>output</code> 的文件夹，里面就是转换好的 MP3 文件（文件名与原文件相同）。</li>
+        </ol>
+
+        <h2>🛠️ 高级用法（命令行参数）</h2>
+        <p>如果你需要更灵活的控制，可以通过命令行运行 <code>TuneFree.exe</code>，支持以下参数: </p>
+        <table>
+            <thead>
+                <tr><th>参数</th><th>说明</th><th>示例</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><code>-i</code> 或 <code>--input</code></td><td>指定输入目录（默认为当前目录）</td><td><code>TuneFree -i "D:\音乐\专辑"</code></td></tr>
+                <tr><td><code>-o</code> 或 <code>--output</code></td><td>指定输出目录（默认为当前目录下的 <code>output</code>）</td><td><code>TuneFree -o "E:\MP3输出"</code></td></tr>
+                <tr><td><code>-b</code> 或 <code>--bitrate</code></td><td>设置 MP3 比特率，可选 <code>128k</code>、<code>192k</code>、<code>320k</code> 等（默认 <code>192k</code>）</td><td><code>TuneFree -b 320k</code></td></tr>
+            </tbody>
+        </table>
+        <p><strong>示例组合: </strong></p>
+        <pre>TuneFree -i "D:\下载" -o "D:\我的MP3" -b 320k</pre>
+        <p>这条命令会处理 <code>D:\下载</code> 中的所有 <code>.mflac</code> 文件，输出到 <code>D:\我的MP3</code> 文件夹，比特率为 320kbps。</p>
+
+        <h2>⚠️ 注意事项</h2>
+        <div class="card">
+            <h3>🔒 杀毒软件误报</h3>
+            <p>由于程序使用了 <strong>Frida</strong> 动态注入技术（用于与 QQ音乐进程通信），部分杀毒软件可能会误报为风险程序。这是正常现象，请将 <code>TuneFree.exe</code> 添加至杀毒软件的信任区，或暂时关闭杀毒软件后再运行。</p>
+        </div>
+        <div class="card">
+            <h3>🎵 QQ音乐必须运行</h3>
+            <p>解密过程依赖 QQMusic.exe 进程，如果未启动程序，会提示“未找到 QQMusic.exe 进程”并退出。请务必先打开 QQ音乐客户端。</p>
+        </div>
+        <div class="card">
+            <h3>📁 文件命名</h3>
+            <p>程序会自动保留原文件名（仅扩展名变为 <code>.mp3</code>）。如果文件名包含特殊字符（如 <code>&</code>、<code>[</code>），也能正常处理。</p>
+        </div>
+        <div class="card">
+            <h3>📄 版权声明</h3>
+            <p>本工具仅供解密<strong>个人合法购买</strong>的 QQ音乐文件，请勿用于传播或商业用途。使用本工具产生的法律责任由用户自行承担。</p>
+        </div>
+
+        <h2>❓ 常见问题</h2>
+        <ul>
+            <li><strong>Q: 运行后提示“未找到 QQMusic.exe 进程”</strong><br> A: 请确保 QQ音乐客户端已启动并保持运行。如果已启动仍报错，尝试以管理员身份运行 <code>TuneFree.exe</code>。</li>
+            <li><strong>Q: 解密失败，提示 <code>invalid size</code> 或类似错误</strong><br> A: 可能是 QQ音乐更新了加密算法，导致内置的 <code>hook_qq_music.js</code> 不兼容。你可以从 <a href="https://github.com/ix64/unlock-music" target="_blank" rel="noopener">解锁音乐项目</a> 获取最新的 <code>hook_qq_music.js</code>，替换 <code>TuneFree.exe</code> 同目录下的同名文件。</li>
+            <li><strong>Q: 转换后的 MP3 音质不佳</strong><br> A: 默认比特率为 <code>192k</code>，可在运行时通过 <code>--bitrate 320k</code> 参数提高音质。更高的比特率会生成更大的文件。</li>
+            <li><strong>Q: 可以处理子文件夹中的文件吗？</strong><br> A: 可以。程序会递归遍历输入目录下的所有子文件夹，找到所有 <code>.mflac</code> 文件进行处理。</li>
+            <li><strong>Q: 程序运行时弹出命令行窗口，可以隐藏吗？</strong><br> A: 目前是控制台程序，必须显示窗口以显示进度。如果希望完全静默运行，可以自行用 <code>pythonw.exe</code> 包装，但这不是本工具的默认功能。</li>
+        </ul>
+
+        <h2>🙏 鸣谢</h2>
+        <p>TuneFree 的诞生离不开以下优秀的开源项目和贡献者，在此表示诚挚的感谢: </p>
+        <ul>
+            <li><a href="https://frida.re/" target="_blank" rel="noopener">Frida</a>: 强大的动态代码注入框架，使解密过程能够与 QQMusic 进程无缝交互。</li>
+            <li><a href="https://ffmpeg.org/" target="_blank" rel="noopener">FFmpeg</a>: 业界领先的多媒体处理工具，负责将 FLAC 高效转换为 MP3。</li>
+            <li><a href="https://github.com/ericjuice/music-decryptor" target="_blank" rel="noopener">music-decryptor</a>: 由 <a href="https://github.com/ericjuice" target="_blank" rel="noopener">ericjuice</a> 开发的 QQ音乐解密工具，提供了核心解密脚本 <code>hook_qq_music.js</code>。</li>
+            <li><a href="https://pyinstaller.org/" target="_blank" rel="noopener">PyInstaller</a>: 将 Python 脚本打包成独立可执行文件的利器，让 TuneFree 能够轻松分发。</li>
+			<li><a href="https://python.org/" target="_blank" rel="noopener">Python</a>: 程序的编写语言，让这一切有可能</li>
+            <li><strong>解锁音乐社区</strong>(Unlock Music): 众多逆向爱好者的共同努力，使得 QQ音乐等平台的加密格式得以解析。</li>
+			<li><a href="https://www.deepseek.com/" target="_blank" rel="noopener">DeepSeek</a>: 为实际资源整合中遇到的技术问题提供了解决思路以及方法、本说明文档框架的搭建以及内容的编写</li>
+			<li><a href="https://www.doubao.com/" target="_blank" rel="noopener">豆包</a>: 提供了程序图标、参与了起名工作</li>
+        </ul>
+        <p style="margin-top: 12px;">感谢所有开源贡献者的智慧和付出，让技术真正服务于自由与分享。</p>
+
+        <h2>📞 支持与反馈</h2>
+        <p>如果你在使用过程中遇到任何问题，或有改进建议，请联系发行者: </p>
+        <p style="background: #f1f5f9; padding: 12px; border-radius: 12px;">📧 邮箱: 2505923037@qq.com
+		<br>🐧 QQ群:1067975918
+		<br>🐙 GitHub: 
+		</p>
+
+        <footer>
+            <p>感谢使用 <span style="font-weight:600; background:linear-gradient(135deg,#3b82f6,#8b5cf6); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">TuneFree</span>，祝你听歌愉快！ 🎧</p>
+            <p style="margin-top: 8px;">© 2026 曾 · 使用说明 v1.1</p>
+        </footer>
+    </div>
+</body>
+</html>
