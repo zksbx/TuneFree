@@ -75,7 +75,6 @@
 
 **示例组合：**
 
-```bash
 TuneFree -i "D:\下载" -o "D:\我的音乐" -b 320k --keep-flac
 这条命令会处理 `D:\下载` 中的所有 `.mflac` 文件，输出MP3到 `D:\我的MP3` 文件夹，并保留 FLAC 到 `D:\我的音乐\flac`，MP3 比特率为 320kbps。
 
