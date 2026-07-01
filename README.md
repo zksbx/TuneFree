@@ -22,6 +22,7 @@
 
 <img width="592" height="590" alt="赞赏码" src="https://github.com/user-attachments/assets/9fa481f5-6536-4734-a7c6-f41436dad76f" />
 
+**爱发电：** [爱发电支持渠道](https://ifdian.net/a/TuneFree)
 
 ---
 
