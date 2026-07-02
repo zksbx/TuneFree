@@ -59,6 +59,7 @@
 ## 🖥️ 图形界面使用指南
 
 启动 `TuneFree.exe` 后，你会看到以下界面区域：
+<img width="715" height="564" alt="1" src="https://github.com/user-attachments/assets/7f6404c1-e997-422e-9258-d1d63180411d" />
 
 - **参数设置**：选择输入目录、输出模式、MP3比特率、输出格式（仅MP3/仅FLAC/两者）。
 - **输出模式**：根目录输出（自动创建 mp3/flac 子文件夹）或独立输出目录（分别指定MP3和FLAC输出位置）。
