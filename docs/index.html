@@ -4,9 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TuneFree · QQ音乐 mflac 转 MP3 / FLAC</title>
+<link rel="alternate" hreflang="zh-CN" href="./tunefree.html">
+<link rel="alternate" hreflang="en" href="./tunefree.en.html">
 <link rel="canonical" href="./tunefree.html">
-<meta http-equiv="refresh" content="0; url=./tunefree.html">
-<script>location.replace('./tunefree.html');</script>
+<script>
+  // 带上原来的 #锚点 再跳：程序里的「帮助」直接打开 /#help，靠这一行才能落到帮助区。
+  // 浏览器语言不是中文时，跳英文版。
+  (function () {
+    var lang = (navigator.language || navigator.userLanguage || 'zh').toLowerCase();
+    var page = lang.indexOf('zh') === 0 ? './tunefree.html' : './tunefree.en.html';
+    location.replace(page + location.hash);
+  })();
+</script>
+<noscript><meta http-equiv="refresh" content="0; url=./tunefree.html"></noscript>
 </head>
 <body style="font-family:-apple-system,'Segoe UI','Microsoft YaHei',sans-serif;padding:40px;text-align:center;color:#333">
 <p>正在打开 <a href="./tunefree.html">TuneFree</a>…</p>

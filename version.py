@@ -32,6 +32,9 @@ SITE_URL_CN = ""
 # 程序里统一用的官网地址
 SITE_PRIMARY = SITE_URL_CN or SITE_URL
 
+# 站内页面本身（根目录的 index.html 只是跳转壳，用 URL 带 #锚点 时必须写全文件名）
+SITE_PAGE = SITE_PRIMARY.rstrip("/") + "/tunefree.html"
+
 # 「查看更新」按钮跳转的地址，想改蓝奏云就填蓝奏云链接
-DOWNLOAD_URL = SITE_PRIMARY + "#download"
+DOWNLOAD_URL = SITE_PAGE + "#download"
 

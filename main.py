@@ -16,9 +16,31 @@ try:  # 版本号统一放在 version.py，打包时如果没带上就退回内�
 except Exception:
     VERSION = "2.1.2"
 
+# 打包成窗口程序后，父进程自己没有控制台；这时每启动一次 ffmpeg（控制台程序），
+# Windows 都会给它新建一个控制台窗口 —— 就是用户看到的一闪而过的黑框。
+# CREATE_NO_WINDOW 让它安静地跑，输出照样能通过管道拿到。
+_NO_WINDOW = 0x08000000 if os.name == 'nt' else 0
+
 # -------------------- 强制 UTF-8 输出（解决编码错误） --------------------
+def _reopen_fd(fd, name):
+    """把第 fd 号文件描述符包成 UTF-8 文本流；fd 不可用返回 None。"""
+    try:
+        return open(fd, mode='w', encoding='utf-8', errors='replace', closefd=False)
+    except (OSError, ValueError):
+        return None
+
+
 def _force_utf8_stdio():
-    """打包成 --noconsole 的 exe 时 sys.stdout 可能是 None，直接 fileno() 会崩。"""
+    """窗口模式打包（--noconsole）时 sys.stdout 常常是 None。
+
+    这时 print() 会静默丢弃输出，连 @@PROGRESS 进度协议也发不出去，
+    界面上的进度条就永远不动。所以这里先试着按 fd 重新打开，拿不到再退回另一个流。
+    """
+    if sys.stdout is None:
+        sys.stdout = _reopen_fd(1, "stdout") or sys.stderr or open(os.devnull, 'w')
+    if sys.stderr is None:
+        sys.stderr = _reopen_fd(2, "stderr") or sys.stdout or open(os.devnull, 'w')
+
     for name in ("stdout", "stderr"):
         stream = getattr(sys, name, None)
         if stream is None:
@@ -207,7 +229,7 @@ def _run_ffmpeg(audio_path, out_path, ffmpeg_path, bitrate):
     """真正调用 ffmpeg，失败时抛 CalledProcessError。"""
     cmd = [ffmpeg_path, '-i', str(audio_path), '-b:a', bitrate, str(out_path), '-y']
     subprocess.run(cmd, check=True, capture_output=True, text=True,
-                   encoding='utf-8', errors='ignore')
+                   encoding='utf-8', errors='ignore', creationflags=_NO_WINDOW)
 
 
 def _run_ffmpeg_to_bytes(audio_path, ffmpeg_path, bitrate):
@@ -217,7 +239,7 @@ def _run_ffmpeg_to_bytes(audio_path, ffmpeg_path, bitrate):
     但读文件和写管道是放行的，这条路能绕过去。
     """
     cmd = [ffmpeg_path, '-i', str(audio_path), '-b:a', bitrate, '-f', 'mp3', 'pipe:1']
-    proc = subprocess.run(cmd, check=True, capture_output=True)
+    proc = subprocess.run(cmd, check=True, capture_output=True, creationflags=_NO_WINDOW)
     data = proc.stdout or b''
     if len(data) < 2048:
         raise RuntimeError(f"ffmpeg 只输出了 {len(data)} 字节，转码未成功")

@@ -8,6 +8,7 @@ _internal/
 build/
 dist/
 *.spec
+!TuneFree.spec
 
 # 运行时产生的文件
 output/

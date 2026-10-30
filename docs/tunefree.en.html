@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="alternate" hreflang="zh-CN" href="tunefree.html">
+<link rel="alternate" hreflang="en" href="tunefree.en.html">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TuneFree · Convert QQ Music .mflac / .mgg to MP3 or FLAC</title>
+<meta name="description" content="TuneFree turns QQ Music encrypted downloads (.mflac / .mgg) into MP3 or FLAC in one click. Portable Windows app, everything processed locally, nothing uploaded.">
+<meta name="keywords" content="mflac to mp3,mflac to flac,mgg to mp3,QQ Music encrypted files,what is mflac,TuneFree">
+<meta property="og:title" content="TuneFree · Convert QQ Music .mflac to MP3 / FLAC">
+<meta property="og:description" content="One click turns .mflac / .mgg into MP3 or FLAC. Portable Windows app, fully offline.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+<style>
+  :root{
+    --bg:#f6f7fb; --bg-soft:#ffffff; --card:#ffffff; --text:#16202e; --text-2:#5a6a7e;
+    --line:#e3e8ef; --brand:#3b6cf6; --brand-2:#8b5cf6; --accent:#16a34a; --warn-bg:#fff7e6;
+    --warn-line:#f6c667; --code-bg:#f1f4f9; --shadow:0 10px 30px rgba(20,30,50,.06);
+    --radius:18px;
+  }
+  html[data-theme="dark"]{
+    --bg:#11151c; --bg-soft:#161b24; --card:#1a2029; --text:#e8edf5; --text-2:#93a1b5;
+    --line:#2a323f; --brand:#6f95ff; --brand-2:#a78bfa; --accent:#4ade80; --warn-bg:#2a2417;
+    --warn-line:#6b5620; --code-bg:#222a35; --shadow:0 10px 30px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;scroll-padding-top:76px}
+  body{
+    background:var(--bg); color:var(--text); line-height:1.7;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--brand);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px}
+
+  /* 顶栏 */
+  nav{
+    position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 88%,transparent);
+    backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
+  }
+  nav .wrap{display:flex;align-items:center;gap:22px;height:60px}
+  .logo{font-weight:700;font-size:1.05rem;letter-spacing:.2px;display:flex;align-items:center;gap:8px;color:var(--text)}
+  .logo .dot{width:22px;height:22px;border-radius:8px;background:linear-gradient(135deg,var(--brand),var(--brand-2));display:flex;align-items:center;justify-content:center;font-size:13px}
+  nav .links{display:flex;gap:20px;margin-left:auto;font-size:.92rem}
+  nav .links a{color:var(--text-2)}
+  nav .links a:hover{color:var(--brand);text-decoration:none}
+  .icon-btn{
+    border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;
+    width:34px;height:34px;cursor:pointer;font-size:15px;line-height:1;display:grid;place-items:center;
+  }
+  .icon-btn:hover{border-color:var(--brand)}
+  .icon-btn.lang-btn{
+    width:auto;min-width:34px;padding:0 9px;font-size:.76rem;font-weight:700;letter-spacing:.03em;
+    color:var(--text-2);text-decoration:none;font-family:inherit;
+  }
+  .icon-btn.lang-btn:hover{color:var(--brand);text-decoration:none}
+
+  /* 首屏 */
+  header{padding:56px 0 40px;text-align:center}
+  .tag{
+    display:inline-block;font-size:.78rem;color:var(--brand);background:color-mix(in srgb,var(--brand) 10%,transparent);
+    border:1px solid color-mix(in srgb,var(--brand) 26%,transparent);padding:4px 12px;border-radius:999px;margin-bottom:18px;
+  }
+  h1{
+    font-size:clamp(2rem,5vw,3rem);line-height:1.25;font-weight:800;letter-spacing:-.5px;margin-bottom:14px;
+  }
+  h1 .grad{background:linear-gradient(120deg,var(--brand),var(--brand-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .lede{font-size:1.06rem;color:var(--text-2);max-width:640px;margin:0 auto 30px}
+  .lede code{background:var(--code-bg);padding:1px 6px;border-radius:6px;font-size:.92em}
+  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .cta-hint{font-size:.85rem;color:var(--text-2);margin-top:12px;text-align:center}
+  .cta-hint b{color:var(--text-1)}
+  .proof{
+    display:grid;gap:16px;margin-top:20px;padding:22px;
+    border:1px solid var(--line);border-radius:16px;background:var(--bg-2);
+  }
+  .proof h3{margin:0;font-size:1.05rem}
+  .proof p{margin:10px 0 0;font-size:.92rem;line-height:1.8;color:var(--text-2)}
+  .proof p b{color:var(--text-1)}
+  .proof > div{min-width:0}
+  .proof-shot{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;max-width:100%}
+  .proof img{display:block;width:100%;min-width:520px;border-radius:10px;border:1px solid var(--line);background:#fff}
+  .scroll-hint{display:none;margin-top:8px;font-size:.75rem;color:var(--text-2)}
+  @media(max-width:640px){ .scroll-hint{display:block} }
+  .proof figcaption{margin-top:8px;font-size:.8rem;color:var(--text-2);text-align:center}
+  .toast{
+    position:fixed;left:50%;bottom:32px;transform:translate(-50%,14px);
+    background:#0f172a;color:#fff;font-size:.9rem;line-height:1.5;
+    padding:11px 18px;border-radius:12px;box-shadow:0 12px 30px rgba(15,23,42,.28);
+    opacity:0;pointer-events:none;transition:opacity .22s ease,transform .22s ease;
+    z-index:99;max-width:min(90vw,420px);text-align:center;
+  }
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+  .pwd-pill{
+    display:inline-block;margin-left:6px;padding:1px 7px;border-radius:6px;
+    background:var(--bg-2);border:1px solid var(--line);font-family:ui-monospace,Consolas,monospace;
+    font-size:.85em;color:var(--text-1);letter-spacing:.04em;
+  }
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;padding:13px 24px;border-radius:12px;font-weight:600;
+    font-size:.98rem;border:1px solid transparent;transition:transform .12s ease, box-shadow .12s ease;cursor:pointer;
+  }
+  .btn:hover{text-decoration:none;transform:translateY(-1px)}
+  .btn-primary{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;box-shadow:0 8px 20px color-mix(in srgb,var(--brand) 30%,transparent)}
+  .btn-ghost{background:var(--card);color:var(--text);border-color:var(--line)}
+  .btn-ghost:hover{border-color:var(--brand)}
+  .meta{font-size:.85rem;color:var(--text-2);margin-top:16px}
+  .meta span{margin:0 6px;white-space:nowrap;display:inline-block}
+
+  /* 通用区块 */
+  section{padding:44px 0}
+  h2{font-size:1.55rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+  h2::before{content:"";width:5px;height:22px;border-radius:6px;background:linear-gradient(var(--brand),var(--brand-2))}
+  .sub{color:var(--text-2);margin-bottom:26px;font-size:.95rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+
+  /* 三步 */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .step{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;position:relative}
+  .step .num{
+    width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--brand-2));
+    color:#fff;font-weight:700;font-size:.9rem;display:grid;place-items:center;margin-bottom:12px;
+  }
+  .step h3{font-size:1rem;margin-bottom:6px}
+  .step p{font-size:.9rem;color:var(--text-2)}
+
+  /* 特性 */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .feat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+  .feat .ico{font-size:1.3rem;margin-bottom:10px;display:block}
+  .feat h3{font-size:.98rem;margin-bottom:6px}
+  .feat p{font-size:.88rem;color:var(--text-2)}
+
+  /* 下载 */
+  .dl{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;align-items:start}
+  .dl-main{background:linear-gradient(160deg,color-mix(in srgb,var(--brand) 8%,var(--card)),var(--card));border:1px solid color-mix(in srgb,var(--brand) 26%,var(--line));border-radius:var(--radius);padding:26px}
+  .ver{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+  .ver b{font-size:1.5rem}
+  .ver .badge{font-size:.72rem;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);padding:2px 8px;border-radius:999px}
+  .dl-main .filesize{color:var(--text-2);font-size:.86rem;margin-bottom:18px}
+  .dl-side{display:flex;flex-direction:column;gap:10px}
+  .mirror{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;font-size:.9rem}
+  .mirror small{color:var(--text-2);display:block;font-size:.78rem}
+
+  .notice{
+    border:1px solid var(--warn-line);background:var(--warn-bg);border-radius:14px;padding:16px 18px;margin-top:18px;font-size:.9rem;
+  }
+  .notice b{color:var(--text)}
+  .notice ul{margin:8px 0 0 18px}
+  .notice li{margin:4px 0;color:var(--text-2)}
+
+  /* 帮助 */
+  .help-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .help-grid .card h3{font-size:.98rem;margin-bottom:10px}
+  .help-grid ol,.help-grid ul{margin-left:18px;font-size:.9rem;color:var(--text-2)}
+  .help-grid li{margin:5px 0}
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:.88rem}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
+  th{color:var(--text-2);font-weight:600;background:var(--code-bg)}
+  td code, p code, li code{background:var(--code-bg);padding:1px 6px;border-radius:6px;font-family:ui-monospace,Consolas,"Cascadia Code",monospace;font-size:.88em;color:inherit}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow-x:auto;font-size:.85rem;font-family:ui-monospace,Consolas,monospace}
+
+  /* FAQ */
+  details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:10px}
+  details[open]{border-color:color-mix(in srgb,var(--brand) 34%,var(--line))}
+  summary{
+    cursor:pointer;font-weight:600;font-size:.94rem;list-style:none;
+    position:relative;padding-right:26px;
+  }
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"＋";color:var(--text-2);font-weight:400;position:absolute;right:0;top:0}
+  details[open] summary::after{content:"－"}
+  details p{margin-top:10px;font-size:.9rem;color:var(--text-2)}
+  details ul{margin:8px 0 0 18px;font-size:.9rem;color:var(--text-2)}
+  details code{white-space:nowrap}
+
+  /* 赞赏 */
+  .support-card{display:flex;gap:28px;align-items:center;flex-wrap:wrap;justify-content:center;text-align:center}
+  .support-card img{width:100%;max-width:520px;height:auto;border-radius:12px;background:#fff}
+  .support-tip{flex:1 1 260px;min-width:240px;max-width:420px;font-size:.9rem;color:var(--text-2);line-height:1.85;text-align:left}
+  .support-tip a{color:var(--brand);font-weight:600}
+  @media (max-width:820px){
+    .support-card{gap:16px}
+    .support-tip{text-align:center;max-width:none}
+  }
+
+  /* 页脚 */
+  footer{border-top:1px solid var(--line);padding:34px 0 46px;color:var(--text-2);font-size:.86rem}
+  footer .cols{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  footer h4{color:var(--text);font-size:.9rem;margin-bottom:8px}
+  footer a{color:var(--text-2)}
+  footer a:hover{color:var(--brand)}
+  .disclaimer{margin-top:22px;font-size:.8rem;line-height:1.6;opacity:.85}
+
+  @media (max-width:820px){
+    .steps,.grid,.dl,.help-grid{grid-template-columns:1fr}
+    nav .links{display:none}
+    nav .icon-btn{margin-left:auto}
+    header{padding:36px 0 24px}
+  }
+  @media (max-width:480px){
+    h1{font-size:1.75rem}
+    .lede{font-size:1rem}
+    .btn{padding:12px 18px;font-size:.92rem}
+    section{padding:32px 0}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="logo" href="#top"><span class="dot">🎵</span> TuneFree</a>
+    <div class="links">
+      <a href="#download">Download</a>
+      <a href="#help">Help</a>
+      <a href="#faq">FAQ</a>
+      <a href="#support">Support</a>
+      <a href="https://github.com/zksbx/TuneFree" target="_blank" rel="noopener">GitHub</a>
+    </div>
+    <a class="icon-btn lang-btn" href="tunefree.html" title="切换到中文版" aria-label="Switch to Chinese">中文</a>
+    <button class="icon-btn" id="themeBtn" title="Toggle dark / light" aria-label="Toggle theme">🌙</button>
+  </div>
+</nav>
+
+<header id="top">
+  <div class="wrap">
+    <span class="tag">Windows 10 / 11 · Portable · Fully offline</span>
+    <h1>Your QQ Music downloads,<br><span class="grad">turned into MP3 that plays anywhere</span></h1>
+    <p class="lede">
+      TuneFree decrypts <code>.mflac</code> / <code>.mgg</code> files back into lossless FLAC in one click,
+      then re-encodes them to everyday MP3. All of it happens on your own machine — nothing uploaded, nothing online.
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" id="mainDownload" href="https://github.com/zksbx/TuneFree/releases/latest" target="_blank" rel="noopener">⬇ Download for Windows</a>
+      <a class="btn btn-ghost" id="mainLanzou" data-lanzou href="#download" title="Lanzou mirror — no login needed">☁ Mirror download</a>
+    </div>
+    <p class="cta-hint">The mirror is on <b>Lanzou</b> — no login, no sign-up. Access code <span class="pwd-pill">0211</span> is copied for you when you click.</p>
+    <p class="meta">
+      <span id="verText">Latest v2.1.2</span>
+    </p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>Three steps</h2>
+    <p class="sub">No Python, no command line. Unzip and run.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="num">1</div>
+        <h3>Open QQ Music and log in</h3>
+        <p>Keep the client running in the background — you don't need to play anything.</p>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <h3>Pick the folder with your songs</h3>
+        <p>Unzip, double-click <code>TuneFree.exe</code>, then choose the folder holding your <code>.mflac</code> or <code>.mgg</code> files.</p>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <h3>Press start</h3>
+        <p>Finished MP3s land in the output folder, named exactly like the originals — copy them anywhere.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="support">
+  <div class="wrap">
+    <h2>If it helped</h2>
+    <p class="sub">Completely free, no ads, and it always will be. If TuneFree genuinely saved you some time, you can buy the author a milk tea 🧋</p>
+    <div class="card support-card">
+      <img src="support.png" alt="Left: WeChat tip QR, right: Alipay tip QR" width="760" height="460" loading="lazy">
+      <p class="support-tip">
+        Scan the left code with WeChat, the right one with Alipay — whichever is handier.
+        No money is fine too: <a href="https://github.com/zksbx/TuneFree" target="_blank" rel="noopener">leave a star</a>
+        or pass the tool on to someone who needs it, and that helps just as much.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What it does</h2>
+    <p class="sub">Decryption pulls the key from inside the running client; encoding is handed to ffmpeg.</p>
+    <div class="grid">
+      <div class="feat"><span class="ico">🔓</span><h3>Decrypts .mflac / .mgg</h3><p>It injects into the QQ Music process and calls its own decryption routine — no cloud service, no subscription.</p></div>
+      <div class="feat"><span class="ico">🎚️</span><h3>Three output modes</h3><p>MP3 only, lossless FLAC only, or keep both. Bitrate 128k / 192k / 320k.</p></div>
+      <div class="feat"><span class="ico">📁</span><h3>Tidy output</h3><p>Walks subfolders recursively and writes to <code>output/mp3</code> and <code>output/flac</code>, keeping the original names.</p></div>
+      <div class="feat"><span class="ico">📊</span><h3>Live progress</h3><p>Both decryption and encoding report progress, so you can see exactly where it stalls. Any file that fails is named in the log.</p></div>
+      <div class="feat"><span class="ico">🔁</span><h3>Resume safe</h3><p>Interrupted halfway? Running it again skips the files already finished instead of starting over.</p></div>
+      <div class="feat"><span class="ico">🛡️</span><h3>Nothing phones home</h3><p>Apart from the update check it contacts no server. Your library and files stay on your disk.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <h2>Download</h2>
+    <p class="sub">GitHub is recommended — always the newest and the cleanest. Use the mirror when GitHub is unreachable.</p>
+    <div class="dl">
+      <div class="dl-main">
+        <div class="ver"><b id="verNum">v2.1.2</b><span class="badge">Latest</span></div>
+        <div class="filesize" id="sizeText">Windows 10 / 11 64-bit · Portable · Unzip and run</div>
+        <a class="btn btn-primary" id="dlPrimary" href="https://github.com/zksbx/TuneFree/releases/latest" target="_blank" rel="noopener">⬇ Download from GitHub</a>
+        <p class="meta" style="text-align:left;margin-top:14px">
+          Older builds live on the <a href="https://github.com/zksbx/TuneFree/releases" target="_blank" rel="noopener">Releases page</a>.
+          The app tells you when an update is out, so there is no need to check back here.
+        </p>
+      </div>
+      <div class="dl-side">
+        <div class="mirror">
+          <div><b>Lanzou</b><small>Direct link for mainland China, no login · access code <span id="dlPwdText">—</span></small></div>
+          <a id="dlLanzou" data-lanzou href="#download">Go →</a>
+        </div>
+        <div class="mirror">
+          <div><b>Source on GitHub</b><small>Build it yourself or read the code</small></div>
+          <a href="https://github.com/zksbx/TuneFree" target="_blank" rel="noopener">View →</a>
+        </div>
+        <div class="mirror">
+          <div><b>Changelog</b><small>What changed in each release</small></div>
+          <a href="https://github.com/zksbx/TuneFree/releases" target="_blank" rel="noopener">View →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="notice">
+      <b>⚠️ Read this first — it prevents most problems:</b>
+      <ul>
+        <li><b>Your antivirus will complain.</b> The app uses Frida to inject code into the QQ Music process, which is exactly what malware does. Add an exclusion — the source is public.</li>
+        <li><b>The first launch may be stopped by a blue window.</b> That is SmartScreen, not a detection. Right-click the zip → Properties → tick <b>Unblock</b> → then extract and it will not appear again. Already extracted? Click <b>More info</b> → <b>Run anyway</b>.</li>
+        <li><b>QQ Music must be running first</b> — otherwise the app says so and exits.</li>
+        <li><b>Extract somewhere ordinary.</b> Inside managed folders (corporate drives, some user directories) ffmpeg may lack permission to write files.</li>
+      </ul>
+    </div>
+
+    <figure class="proof">
+      <div>
+        <h3>A download count you can check</h3>
+        <p>The previous release <b>v2.0.0</b> shipped on <b>2026-06-30</b> and had been downloaded
+           <b>3,660 times</b> by <b>2026-10-31</b>. That figure comes from Lanzou's own backend — the author cannot edit it.</p>
+        <p>Thousands of people have installed and used this tool. Something genuinely malicious would not stay quiet.</p>
+      </div>
+      <div>
+        <div class="proof-shot">
+          <a href="downloads.png" target="_blank" rel="noopener" title="Open full size">
+            <img src="downloads.png" alt="Lanzou dashboard screenshot: TuneFree-2.0.0.exe with 3,660 downloads">
+          </a>
+        </div>
+        <figcaption>Lanzou dashboard · TuneFree folder · screenshot taken 2026-10-31 · v2.0.0 has 3,660 downloads (click to enlarge)</figcaption>
+        <div class="scroll-hint">← swipe sideways on mobile to see the whole screenshot →</div>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<section id="help">
+  <div class="wrap">
+    <h2>Help</h2>
+    <p class="sub">The window has three parts: options on top, the running log in the middle, the start button at the bottom.</p>
+
+    <div class="help-grid">
+      <div class="card">
+        <h3>🖥️ What's in the window</h3>
+        <ul>
+          <li><b>Input folder</b>: where your <code>.mflac</code> / <code>.mgg</code> files live. Leave it empty to use the app's own folder.</li>
+          <li><b>Output folder</b>: results go here, and the app creates <code>mp3</code> / <code>flac</code> subfolders inside it.</li>
+          <li><b>MP3 bitrate</b>: 192k by default; pick 320k for better quality and bigger files.</li>
+          <li><b>Output format</b>: MP3 only / FLAC only / keep both.</li>
+          <li><b>Log</b>: every step is written here. If something breaks, paste it into an AI assistant or send it to the author.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>🚀 Order of operations</h3>
+        <ol>
+          <li>Open QQ Music, log in, and leave it running.</li>
+          <li>Double-click <code>TuneFree.exe</code>.</li>
+          <li>Click <b>Browse</b> next to the input field and pick the folder holding your songs.</li>
+          <li>Choose the output format and bitrate.</li>
+          <li>Press <b>Start</b> and wait for the progress bar to finish.</li>
+          <li>Collect your files from the output folder.</li>
+        </ol>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <p class="sub">Click to expand — including the ones that look like bugs but aren't.</p>
+
+    <details>
+      <summary>"Please make sure the QQ Music client is running, then try again"</summary>
+      <p>Start QQ Music and log in first, then launch TuneFree. If it still complains while QQ Music is running, try running as administrator — injection needs higher privileges in some environments.</p>
+    </details>
+
+    <details>
+      <summary><code>invalid size</code> or "QQ Music version mismatch"</summary>
+      <p>A QQ Music update renamed the decryption symbol, so the bundled script can no longer find it.</p>
+      <ul>
+        <li>Update QQ Music to the latest build, then check whether a new TuneFree release exists;</li>
+        <li>Workaround: roll QQ Music back one version;</li>
+        <li>If neither helps, ask in the QQ group and attach the error log from the app.</li>
+      </ul>
+    </details>
+
+    <details>
+      <summary>Decryption works, but every MP3 conversion fails</summary>
+      <p>If the log shows <code>Permission denied</code> or exit code <code>-13</code>, ffmpeg is being denied write access — the songs themselves are fine. Usual causes:</p>
+      <ul>
+        <li>Antivirus (360, Huorong, Defender) is blocking ffmpeg's disk writes — add an exclusion;</li>
+        <li>The app may sit in a managed folder — move it somewhere ordinary such as D:\ or the Desktop and retry;</li>
+        <li>The output folder is read-only, or another program is holding the file open.</li>
+      </ul>
+    </details>
+
+    <details>
+      <summary>A handful of songs simply won't convert</summary>
+      <p>Some files need to be played once in QQ Music first, so the full data lands in the local cache — then convert them. Re-downloading just those tracks also helps.</p>
+    </details>
+
+    <details>
+      <summary>"Windows protected your PC" — a blue window blocks it from running</summary>
+      <p>That is SmartScreen's "unknown publisher" warning, not a virus detection. Either of these works:</p>
+      <p>In the blue window click <b>More info</b>, then <b>Run anyway</b> at the bottom right. You only need to do this once per file.</p>
+      <p>Removing the warning entirely requires a code-signing certificate, which costs thousands of yuan a year. This project is free, so it has not gone down that road.</p>
+    </details>
+
+    <details>
+      <summary>My antivirus flags it as a virus</summary>
+      <p>It is a false positive caused by Frida injection. The whole source is public on GitHub if you want to verify it yourself. Add the app folder to your exclusions, or pause real-time protection for the conversion and turn it back on afterwards.</p>
+    </details>
+
+    <details>
+      <summary>Does it look inside subfolders?</summary>
+      <p>Yes — it scans every level below the input folder for <code>.mflac</code> / <code>.mgg</code>.</p>
+    </details>
+
+    <details>
+      <summary>How do I keep the lossless FLAC?</summary>
+      <p>Choose "keep both" as the output format, or pass <code>--keep-flac</code> on the command line. Want FLAC without MP3? Pick "FLAC only".</p>
+    </details>
+
+    <details>
+      <summary>I closed it halfway through — do I start over?</summary>
+      <p>No. Running it again skips files that already exist and only fills the gaps. To force a full rebuild, tick "Regenerate existing MP3s".</p>
+    </details>
+
+    <details>
+      <summary>Mac / Linux support?</summary>
+      <p>Only a Windows 64-bit build is published. The core is plain Python, so it should run elsewhere in theory, but there is no package and it has not been tested.</p>
+    </details>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Credits</h2>
+    <p class="sub">It stands on the shoulders of a lot of open-source work.</p>
+    <div class="card" style="font-size:.9rem;color:var(--text-2);line-height:2">
+      <a href="https://frida.re/" target="_blank" rel="noopener">Frida</a> provides the injection ·
+      <a href="https://ffmpeg.org/" target="_blank" rel="noopener">FFmpeg</a> handles encoding ·
+      the decryptor started as <a href="https://github.com/ericjuice/music-decryptor" target="_blank" rel="noopener">ericjuice/music-decryptor</a> ·
+      packaged with <a href="https://pyinstaller.org/" target="_blank" rel="noopener">PyInstaller</a> ·
+      first GUI by "Moli" · testing by "Huahong Dakuci" · "Sparkle" contributed the play-once workaround ·
+      icon and naming from "Doubao" · documentation framework organised with DeepSeek ·
+      and years of format knowledge from the Unlock Music community.
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h4>TuneFree</h4>
+        <p>World peace — enjoy the music.</p>
+      </div>
+      <div>
+        <h4>Links</h4>
+        <p><a href="https://github.com/zksbx/TuneFree" target="_blank" rel="noopener">GitHub repo</a> ·
+           <a href="https://github.com/zksbx/TuneFree/releases" target="_blank" rel="noopener">Releases</a> ·
+           <a href="https://ifdian.net/a/TuneFree" target="_blank" rel="noopener">Afdian</a></p>
+      </div>
+      <div>
+        <h4>Contact</h4>
+        <p>QQ group 1067975918 · email 2505923037@qq.com</p>
+      </div>
+    </div>
+    <p class="disclaimer">
+      This tool only decrypts music you have <b>legitimately purchased or are licensed to use</b>. Do not redistribute it or use it commercially; any legal consequences are the user's own.
+      TuneFree provides no way to bypass payment, crack memberships, or download copyrighted content.
+    </p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // theme: follow the system, remember a manual choice
+  var root = document.documentElement;
+  var btn = document.getElementById('themeBtn');
+  var saved = null;
+  try { saved = localStorage.getItem('tf-theme'); } catch (e) {}
+  var mql = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function apply(mode) {
+    root.setAttribute('data-theme', mode);
+    btn.textContent = mode === 'dark' ? '☀️' : '🌙';
+  }
+  apply(saved || (mql.matches ? 'dark' : 'light'));
+  mql.addEventListener('change', function (e) {
+    if (!localStorage.getItem('tf-theme')) apply(e.matches ? 'dark' : 'light');
+  });
+  btn.addEventListener('click', function () {
+    var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    apply(next);
+    try { localStorage.setItem('tf-theme', next); } catch (e) {}
+  });
+
+  // ===== on each release only these two lines change: Lanzou link + access code =====
+  // e.g. var LANZOU_URL = 'https://wwxx.lanzoum.com/ixxxxxxx';
+  var LANZOU_URL = 'https://wwbtj.lanzouc.com/b01d7csi8j';
+  var LANZOU_PWD = '0211';   // leave empty '' when the share has no password
+
+  var toastEl = document.createElement('div');
+  toastEl.className = 'toast';
+  document.body.appendChild(toastEl);
+  var toastTimer = null;
+  function toast(msg) {
+    toastEl.innerHTML = msg;
+    toastEl.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('on'); }, 4200);
+  }
+
+  function copyText(text) {
+    return new Promise(function (resolve) {
+      var settled = false;
+      function done(ok) { if (!settled) { settled = true; resolve(ok); } }
+      function legacy() {
+        if (settled) return;
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+          document.body.appendChild(ta);
+          ta.select();
+          ta.setSelectionRange(0, text.length);
+          var ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          done(ok);
+        } catch (e) { done(false); }
+      }
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          navigator.clipboard.writeText(text)
+            .then(function () { done(true); }, legacy);
+          // some browsers neither resolve nor reject without permission, so fall back
+          setTimeout(legacy, 700);
+          return;
+        } catch (e) { legacy(); return; }
+      }
+      legacy();
+    });
+  }
+
+  var lanzouTarget = LANZOU_URL || '#download';
+  var lanzouLinks = document.querySelectorAll('[data-lanzou]');
+  var pwdText = document.getElementById('dlPwdText');
+  if (pwdText) pwdText.textContent = LANZOU_PWD || 'none';
+
+  for (var k = 0; k < lanzouLinks.length; k++) {
+    lanzouLinks[k].setAttribute('href', lanzouTarget);
+    if (LANZOU_URL) {
+      lanzouLinks[k].setAttribute('target', '_blank');
+      lanzouLinks[k].setAttribute('rel', 'noopener');
+    }
+    if (LANZOU_URL && LANZOU_PWD) {
+      // Lanzou doesn't accept the password in the URL, so copy it and let the user paste
+      lanzouLinks[k].addEventListener('click', function (e) {
+        e.preventDefault();
+        // copy while this tab still has focus, then open the new tab.
+        // the other way round the new tab steals focus and clipboard throws "document is not focused".
+        toast('Copying access code <b>' + LANZOU_PWD + '</b>…');
+        copyText(LANZOU_PWD).then(function (ok) {
+          toast(ok
+            ? 'Access code <b>' + LANZOU_PWD + '</b> copied — just paste it'
+            : 'The access code is <b>' + LANZOU_PWD + '</b> — please type it in');
+          // no noopener here: it makes window.open return null, so a blocked popup looks the same as success
+          var win = window.open(LANZOU_URL, '_blank');
+          if (win) {
+            try { win.opener = null; } catch (err) {}
+          } else {
+            toast('The browser blocked the new tab — allow pop-ups and click again');
+          }
+        });
+      });
+    }
+  }
+  if (!LANZOU_URL) {
+    var hint = document.querySelector('.cta-hint');
+    if (hint) hint.innerHTML = 'The mirror is on <b>Lanzou</b> — no login, no sign-up, click and download.'
+      + '<span style="opacity:.7"> (link coming soon — use the GitHub download above for now)</span>';
+    var side = document.getElementById('dlLanzou');
+    if (side) { side.textContent = 'Coming soon'; side.style.opacity = '.55'; }
+  }
+
+  // ===== safety net: every external link opens a new tab, never replaces this page =====
+  (function () {
+    var links = document.querySelectorAll('a[href]');
+    for (var i = 0; i < links.length; i++) {
+      var a = links[i];
+      var href = a.getAttribute('href') || '';
+      if (href.charAt(0) === '#') continue;              // keep in-page anchors as they are
+      if (/^https?:\/\//i.test(href)) {
+        a.setAttribute('target', '_blank');
+        a.setAttribute('rel', 'noopener');
+      }
+    }
+  })();
+
+  // version: read version.json from the repo root (single source), fall back to the value in the page
+  var VERSION_SOURCES = [
+    'https://cdn.jsdelivr.net/gh/zksbx/TuneFree@main/version.json',
+    'https://raw.githubusercontent.com/zksbx/TuneFree/main/version.json',
+    'version.json'
+  ];
+  (function tryVersion(i) {
+    if (i >= VERSION_SOURCES.length) return;
+    fetch(VERSION_SOURCES[i], { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.version) { tryVersion(i + 1); return; }
+        document.getElementById('verText').textContent = 'Latest v' + d.version;
+        document.getElementById('verNum').textContent = 'v' + d.version;
+        if (d.url) {
+          document.getElementById('dlPrimary').href = d.url;
+          document.getElementById('mainDownload').href = d.url;
+        }
+      })
+      .catch(function () { tryVersion(i + 1); });
+  })(0);
+})();
+</script>
+</body>
+</html>
