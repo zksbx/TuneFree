@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# 打包产物（本地留着跑，但别提交）
+_internal/
+build/
+dist/
+*.spec
+
+# 运行时产生的文件
+output/
+TuneFree.ini
+TuneFree_日志.txt
+TuneFree_错误日志.txt
+
+# 第三方二进制：87MB，不进仓库，让用户自己下载或从 Release 拿
+ffmpeg.exe
+ffmpeg-core.exe
+*.tmp
+
+# 本机排查用的脚本（路径写死在这台机器上）
+运行_干净目录.bat
