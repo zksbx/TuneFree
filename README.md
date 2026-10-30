@@ -86,7 +86,11 @@
 
 程序用 `Frida` 往` QQ`音乐进程里注入代码——这个行为本身就跟病毒一模一样，所以杀软基本都会报。
 
+<<<<<<< HEAD
 解决办法：把 `TuneFree` 目录加入杀软信任区。源码完全公开，你可以自己看每一行在做什么。
+=======
+解决办法：把 TuneFree 目录加入杀软信任区。源码完全公开，不放心可以自行看每一行在做什么。
+>>>>>>> 2583998716863e542df6828ee5567c38037f21ed
 </details>
 
 <details>
@@ -117,7 +121,12 @@
 
 <details>
 <summary><b>支持 Mac / Linux 吗？</b></summary>
+<<<<<<< HEAD
 暂时只有 Windows。核心逻辑不依赖 Windows，但注入目标 `QQ`音乐只有 Windows 版。
+=======
+
+暂时只有 Windows。
+>>>>>>> 2583998716863e542df6828ee5567c38037f21ed
 </details>
 
 ## 从源码运行
@@ -158,10 +167,15 @@ TuneFree.py          图形界面（PySide6）
 main.py              命令行 / 后端：注入、解密、转码
 hook_qq_music.js     Frida 注入脚本（解密核心）
 version.py           版本号与仓库地址的唯一来源
+<<<<<<< HEAD
 version.json         给国内用户用的更新源（经 jsDelivr）
 TuneFree.spec        PyInstaller 打包配置（只产出一个 TuneFree.exe）
 docs/                官网（静态单页）
 发版清单.md           发版流程备忘
+=======
+version.json         给国内用户用的更新源
+docs/                官网
+>>>>>>> 2583998716863e542df6828ee5567c38037f21ed
 ```
 
 ## 免责声明
