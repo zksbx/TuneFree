@@ -2,6 +2,12 @@
 
 **Turn the encrypted songs you downloaded in QQ Music (`.mflac` / `.mgg`) into `MP3` or `FLAC` that any player can open.**
 
+[![Release](https://img.shields.io/github/v/release/zksbx/TuneFree?color=2ea043&label=release)](https://github.com/zksbx/TuneFree/releases/latest)
+[![Downloads](https://img.shields.io/badge/downloads-3.6k%2B-3b82f6)](https://wwbtj.lanzouc.com/b01d7csi8j)
+[![Stars](https://img.shields.io/github/stars/zksbx/TuneFree?color=e3b341)](https://github.com/zksbx/TuneFree/stargazers)
+[![License](https://img.shields.io/github/license/zksbx/TuneFree?color=8957e5)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-6e7781)](README.en.md#requirements)
+
 No membership tricks, no uploading — everything happens on your own computer.
 
 [⬇️ Download latest](https://github.com/zksbx/TuneFree/releases/latest) · [🌐 Website & help](https://zksbx.github.io/TuneFree/tunefree.en.html) · [☁️ Lanzou mirror](https://wwbtj.lanzouc.com/b01d7csi8j) (access code `0211`) · 💬 QQ group: 1067975918 · [中文 README](README.md)

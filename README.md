@@ -2,6 +2,13 @@
 
 **把 QQ音乐下载的加密歌曲（`.mflac` / `.mgg`）一键变成任何播放器都能放的 `MP3` 或 `FLAC`。**
 
+[![Release](https://img.shields.io/github/v/release/zksbx/TuneFree?color=2ea043&label=release)](https://github.com/zksbx/TuneFree/releases/latest)
+[![Downloads](https://img.shields.io/badge/downloads-3.6k%2B-3b82f6)](https://wwbtj.lanzouc.com/b01d7csi8j)
+[![Stars](https://img.shields.io/github/stars/zksbx/TuneFree?color=e3b341)](https://github.com/zksbx/TuneFree/stargazers)
+[![License](https://img.shields.io/github/license/zksbx/TuneFree?color=8957e5)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-6e7781)](#系统要求)
+[![QQ群](https://img.shields.io/badge/QQ%E7%BE%A4-1067975918-12b7f5)](#支持)
+
 不需要会员，不需要上传，全程在你自己的电脑上完成。
 
 [⬇️ 下载最新版](https://github.com/zksbx/TuneFree/releases/latest) · [🌐 官网与使用帮助](https://zksbx.github.io/TuneFree/) · [☁️ 蓝奏云备用下载](https://wwbtj.lanzouc.com/b01d7csi8j)（提取码 `0211`）· 💬 `QQ` 群：1067975918 · [English](README.en.md)
@@ -35,11 +42,12 @@
 
 ## 赞赏
 
-`TuneFree` 完全免费，没有广告，也不会做任何限制功能来收费。如果` TuneFree` 确实帮到了您，您可以选择请作者喝杯奶茶：
+`TuneFree` 完全免费，没有广告，也不会做任何限制功能来收费。如果 `TuneFree` 确实帮到了您，您可以选择请作者喝杯奶茶：
 
 <p align="center">
   <img src="docs/support.png" alt="左边微信赞赏码，右边支付宝收款码" width="560">
 </p>
+
 不想花钱也完全没关系——[点个 Star](https://github.com/zksbx/TuneFree) 或者把它告诉需要的人，同样是很大的帮助。
 
 ## 是不是病毒？先看这个
