@@ -66,64 +66,53 @@ Your antivirus will still complain, and that is expected: TuneFree injects code 
 
 - Windows 10 / 11 (64-bit)
 - QQ Music client (logged in — decryption borrows its key)
+- **Only the `Standard` / `HQ` / `SQ` quality tiers are supported.** Tracks downloaded as Hi-Res (臻品音质), Master (臻品母带) or Dolby Atmos are not supported and will fail to decrypt.
 
 ## FAQ
 
-<details>
-<summary><b>"Windows protected your PC" — a blue window blocks it from running</b></summary>
+### "Windows protected your PC" — a blue window blocks it from running
 
-That is SmartScreen's "unknown publisher" warning, not a virus detection — any `exe` without a paid code-signing certificate is stopped the first time.
+That is SmartScreen's "unknown publisher" warning, not a virus detection — an unsigned exe is blocked the first time, always.
 
-Two ways around it, pick either:
+Two ways out:
 
-1. **Before extracting (recommended)**: right-click the zip → Properties → at the bottom of the General tab tick **Unblock** → OK, then extract. Files extracted this way are no longer tagged as "from the internet" and will never trigger the warning.
-2. **Already extracted**: in the blue window click **More info**, then **Run anyway** at the bottom right. Once per file is enough.
+1. **Before unzipping (recommended)**: right-click the zip → Properties → tick **Unblock** at the bottom of the General tab → Apply, then unzip. The extracted files are no longer marked as "from the internet" and will never prompt again.
+2. **Already unzipped**: in the blue window click **More info**, then **Run anyway** at the bottom right. Once per file is enough.
 
-The zip also contains `!首次运行请看.txt`. That file is only visible after extracting, so it only documents method 2 (plus how to add an antivirus exclusion); method 1 has to be done before extracting.
-</details>
+The zip also ships a `!首次运行请看.txt`, but that file is only visible after unzipping, so it documents method 2 only (plus how to whitelist the app when antivirus blocks it).
 
-<details>
-<summary><b>My antivirus flags it as a virus</b></summary>
+### My antivirus flags it as a virus
 
-The app injects code into the QQ Music process with Frida — that behaviour looks exactly like malware, so almost every antivirus reports it.
+The app uses Frida to inject code into the QQ Music process — behaviour that looks exactly like malware, so most antivirus products will report it.
 
-Fix: add the `TuneFree` folder to your antivirus exclusions. The source is fully public, so you can check every line yourself.
-</details>
+Fix: add the TuneFree folder to your antivirus trust list. The source is fully public, you can read every line.
 
-<details>
-<summary><b>"Please make sure the QQ Music client is running, then try again"</b></summary>
+### "Please make sure the QQ Music client is running, then try again"
 
-Start QQ Music and log in first, then press Start. Decryption depends on the key living inside that process — no process, no key.
-</details>
+Open QQ Music and log in first, then hit start. Decryption borrows the key from the QQ Music process; without it there is no key.
 
-<details>
-<summary><b><code>invalid size</code> or "QQ Music version mismatch"</b></summary>
+### `invalid size` or "QQ Music version mismatch"
 
-A QQ Music update renamed its internal functions, so the current build can't be injected.
+QQ Music changed its internal function names, so the current build cannot inject into it.
 
-- Roll QQ Music back to a build known to work, or
-- Wait for TuneFree to support the new version (watch Releases)
-</details>
+- Downgrade QQ Music to a known-good version, or
+- Wait for TuneFree to support the new release (watch Releases)
 
-<details>
-<summary><b>Decryption works, but every MP3 conversion fails</b></summary>
+### Decryption works, but every MP3 conversion fails
 
-Usually your security software is blocking `ffmpeg.exe` from creating files. The app automatically retries by piping the output and writing the file itself, which normally gets through.
+Usually security software is preventing `ffmpeg.exe` from creating files. The app automatically retries through "pipe output + write the file itself", which normally gets through.
 
-If it still fails, add the `TuneFree` folder to your exclusions and try again.
-</details>
+If it still fails, add the TuneFree folder to your trust list.
 
-<details>
-<summary><b>A handful of songs simply won't convert</b></summary>
+### A handful of songs simply won't convert
 
-Some tracks need to be played once in QQ Music first, so the decryption is loaded, and then run TuneFree.
-</details>
+Check the quality tier first. Only **Standard / HQ / SQ** are supported; if a song was downloaded as **Hi-Res (臻品音质), Master (臻品母带) or Dolby Atmos** it carries no normal audio stream, so conversion always fails — re-download it at SQ or lower and retry.
 
-<details>
-<summary><b>Mac / Linux support?</b></summary>
+If it is already Standard / HQ / SQ, some files need to be played once in QQ Music first so the full data lands in the local cache, then convert them.
 
-Windows only for now. The core logic doesn't depend on Windows, but the injection target — QQ Music — only exists on Windows.
-</details>
+### Mac / Linux support?
+
+Windows only for now. The core logic is platform-independent, but the QQ Music client it injects into exists only on Windows.
 
 ## Run from source
 

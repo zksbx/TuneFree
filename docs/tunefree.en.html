@@ -334,6 +334,7 @@
         <li><b>Your antivirus will complain.</b> The app uses Frida to inject code into the QQ Music process, which is exactly what malware does. Add an exclusion — the source is public.</li>
         <li><b>The first launch may be stopped by a blue window.</b> That is SmartScreen, not a detection. Right-click the zip → Properties → tick <b>Unblock</b> → then extract and it will not appear again. Already extracted? Click <b>More info</b> → <b>Run anyway</b>.</li>
         <li><b>QQ Music must be running first</b> — otherwise the app says so and exits.</li>
+        <li><b>Only the Standard / HQ / SQ tiers are supported</b> — songs downloaded as Hi-Res (臻品音质), Master (臻品母带) or Dolby Atmos carry no normal audio stream and will always fail.</li>
         <li><b>Extract somewhere ordinary.</b> Inside managed folders (corporate drives, some user directories) ffmpeg may lack permission to write files.</li>
       </ul>
     </div>
@@ -422,7 +423,8 @@
 
     <details>
       <summary>A handful of songs simply won't convert</summary>
-      <p>Some files need to be played once in QQ Music first, so the full data lands in the local cache — then convert them. Re-downloading just those tracks also helps.</p>
+      <p>Check the quality tier first. Only <b>Standard / HQ / SQ</b> are supported; if a song was downloaded as <b>Hi-Res (臻品音质), Master (臻品母带) or Dolby Atmos</b> it carries no normal audio stream, so conversion always fails — re-download it at SQ or lower and retry.</p>
+      <p>If it is already Standard/HQ/SQ, some files need to be played once in QQ Music first, so the full data lands in the local cache — then convert them. Re-downloading just those tracks also helps.</p>
     </details>
 
     <details>
