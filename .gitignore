@@ -23,3 +23,6 @@ ffmpeg-core.exe
 
 # 本机排查用的脚本（路径写死在这台机器上）
 运行_干净目录.bat
+
+# 原始截图（docs/downloads.png 是裁过的版本，网站上用那张）
+下载量.png

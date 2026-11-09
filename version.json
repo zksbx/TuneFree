@@ -1,5 +1,5 @@
 {
-  "version": "2.1.2",
+  "version": "2.1.3",
   "url": "https://github.com/zksbx/TuneFree/releases/latest",
-  "notes": "修复转码失败、界面优化；建议升级"
+  "notes": "全新蓝调配色、主题开关带动画、换主题整窗平滑过渡"
 }

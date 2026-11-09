@@ -5,7 +5,7 @@
 TuneFree.py（界面）和 main.py（后端）都从这里读，不会出现两处版本号不一致。
 """
 
-VERSION = "2.1.2"
+VERSION = "2.1.3"
 
 GITHUB_REPO = "zksbx/TuneFree"
 GITHUB_URL = "https://github.com/" + GITHUB_REPO

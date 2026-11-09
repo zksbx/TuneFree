@@ -14,12 +14,15 @@ from pathlib import Path
 try:  # 版本号统一放在 version.py，打包时如果没带上就退回内置值
     from version import VERSION
 except Exception:
-    VERSION = "2.1.2"
+    VERSION = "2.1.3"
 
 # 打包成窗口程序后，父进程自己没有控制台；这时每启动一次 ffmpeg（控制台程序），
 # Windows 都会给它新建一个控制台窗口 —— 就是用户看到的一闪而过的黑框。
 # CREATE_NO_WINDOW 让它安静地跑，输出照样能通过管道拿到。
 _NO_WINDOW = 0x08000000 if os.name == 'nt' else 0
+
+# 注入阶段失败的原因：main() 收尾时用它决定要不要报失败，而不是假装「全部处理完成」
+_last_inject_error = ""
 
 # -------------------- 强制 UTF-8 输出（解决编码错误） --------------------
 def _reopen_fd(fd, name):
@@ -97,6 +100,7 @@ def emit_progress(phase, done, total):
 
 # -------------------- 解密函数 --------------------
 def run_decrypt(input_dir, flac_output_dir):
+    global _last_inject_error
     if not os.path.exists(input_dir):
         logging.error(f"输入目录不存在: {input_dir}")
         return 0, 0
@@ -109,12 +113,30 @@ def run_decrypt(input_dir, flac_output_dir):
     except frida.ProcessNotFoundError:
         logging.error("请确保QQ音乐客户端正在运行后重试")
         return 0, 0
+    except frida.TransportError as e:
+        # 注入通道就没建起来：frida 的 helper 被杀软拦掉、权限不对、%TEMP% 不可写都会走这里
+        logging.error(f"无法连接 QQ音乐进程（注入通道建立失败）: {e}")
+        logging.error("常见原因：杀毒软件拦下了 frida 的注入组件；QQ音乐以管理员身份运行而本程序不是；"
+                      "临时目录 %TEMP% 不可写")
+        logging.error("可以按顺序试：1) 右键「以管理员身份运行」本程序 2) 把 TuneFree 整个文件夹加入杀软信任区 "
+                      "3) 完全退出 QQ音乐后重新打开再试")
+        _last_inject_error = "无法连接 QQ音乐进程（注入通道建立失败）"
+        return 0, 0
 
     js_path = resource_path("hook_qq_music.js")
-    with open(js_path, "r", encoding="utf-8") as f:
-        jscode = f.read()
-    script = session.create_script(jscode)
-    script.load()
+    try:
+        with open(js_path, "r", encoding="utf-8") as f:
+            jscode = f.read()
+        script = session.create_script(jscode)
+        script.load()
+    except (OSError, frida.TransportError) as e:
+        logging.error(f"注入脚本失败: {e}")
+        _last_inject_error = "注入脚本失败"
+        try:
+            session.detach()
+        except Exception:
+            pass
+        return 0, 0
     logging.info("已连接到 QQMusic 进程")
 
     # 启动自检：QQ音乐一更新，EncAndDesMediaFile 的导出符号就可能失效。
@@ -441,12 +463,19 @@ def main(argv=None):
                              bitrate, args.keep_flac, args.no_mp3, args.force)
     elif dec_failed:
         logging.error("解密全部失败，没有可转码的文件；请查看上面的失败原因")
+    elif _last_inject_error:
+        logging.error(f"{_last_inject_error}；没有可转码的文件，这次不会有任何输出")
     else:
         logging.info("没有可用的 FLAC/OGG 文件，跳过转码步骤")
         logging.info("小提示：确认选择的目录里确实有 .mflac / .mgg 文件（可以包含子文件夹）")
 
     if dec_success and dec_failed:
         logging.info(f"解密 {dec_success} 个成功、{dec_failed} 个失败（失败的文件名见上文）")
+
+    # 一个文件都没解出来、也没有旧文件可转码 —— 这就是失败，别让界面显示「完成」
+    if _last_inject_error and not dec_success and not has_audio:
+        return 1
+
     logging.info("全部处理完成")
     return 0
 

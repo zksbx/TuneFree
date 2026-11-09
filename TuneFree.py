@@ -3,8 +3,10 @@ import os
 import re
 import time
 import json
+import math
 import threading
 import urllib.request
+import webbrowser
 from pathlib import Path
 from PySide6.QtCore import *
 from PySide6.QtWidgets import *
@@ -19,7 +21,7 @@ try:  # 版本号统一放在 version.py，老版本打包里没有这个文件�
         SITE_URL, SITE_PRIMARY, SITE_PAGE,
     )
 except Exception:  # pragma: no cover
-    VERSION = "2.1.2"
+    VERSION = "2.1.3"
     DOWNLOAD_URL = ""
     SITE_URL = "https://zksbx.github.io/TuneFree/"
     SITE_PRIMARY = SITE_URL
@@ -189,87 +191,53 @@ class UpdateChecker(QObject):
 # -------------------- 主题样式表 --------------------
 LIGHT_STYLESHEET = """
     QWidget {
-        background-color: #f5f7fa;
-        color: #1e293b;
+        background-color: #fafbfc;
+        color: #24272d;
         font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
         font-size: 10pt;
     }
     #titleLabel {
         font-size: 22pt;
         font-weight: bold;
-        color: #0f172a;
+        color: #1c1a18;
         margin-bottom: 8px;
     }
     #label {
-        color: #334155;
+        color: #3c4048;
         padding-right: 8px;
         min-width: 60px;
     }
     #inputField {
         background-color: #ffffff;
-        border: 1px solid #cbd5e1;
+        border: 1px solid #e3e8f0;
         border-radius: 8px;
         padding: 6px 10px;
-        color: #1e293b;
+        color: #24272d;
     }
     #inputField:focus {
-        border-color: #3b82f6;
+        border-color: #2f6ee0;
         outline: none;
     }
     #browseBtn {
-        background-color: #e2e8f0;
+        background-color: #edf1f7;
         border: none;
         border-radius: 8px;
         padding: 6px 16px;
-        color: #1e293b;
+        color: #24272d;
     }
     #browseBtn:hover {
-        background-color: #cbd5e1;
+        background-color: #e3e8f0;
     }
-    #updatePrefCheck {
-        color: #64748b;
-        font-size: 8.5pt;
-        spacing: 6px;
-    }
-    #updatePrefCheck::indicator {
-        width: 13px;
-        height: 13px;
-        border-radius: 6px;
-        background-color: #ffffff;
-        border: 1px solid #cbd5e1;
-    }
-    #updatePrefCheck::indicator:hover {
-        border-color: #94a3b8;
-    }
-    #updatePrefCheck::indicator:checked {
-        background-color: #3b82f6;
-        border-color: #3b82f6;
-    }
-    #toggleCheck {
-        color: #1e293b;
-        spacing: 8px;
-        padding-right: 4px;
-    }
-    #toggleCheck::indicator {
-        width: 14px;
-        height: 14px;
-        border-radius: 7px;
-        background-color: #ffffff;
-        border: 1px solid #cbd5e1;
-    }
-    #toggleCheck::indicator:hover {
-        border-color: #94a3b8;
-    }
-    #toggleCheck::indicator:checked {
-        background-color: #3b82f6;
-        border-color: #3b82f6;
+    #switchLabel {
+        color: #3c4048;
+        font-size: 9.5pt;
     }
     #combo {
         background-color: #ffffff;
-        border: 1px solid #cbd5e1;
+        border: 1px solid #e3e8f0;
         border-radius: 8px;
         padding: 4px 8px;
-        color: #1e293b;
+        color: #24272d;
         min-width: 70px;
     }
     #combo::drop-down {
@@ -277,12 +245,12 @@ LIGHT_STYLESHEET = """
     }
     #combo QAbstractItemView {
         background-color: #ffffff;
-        color: #1e293b;
-        selection-background-color: #3b82f6;
+        color: #24272d;
+        selection-background-color: #2f6ee0;
         selection-color: #ffffff;
     }
     #formatRadio {
-        color: #1e293b;
+        color: #24272d;
         spacing: 6px;
         margin-right: 12px;
     }
@@ -291,11 +259,11 @@ LIGHT_STYLESHEET = """
         height: 14px;
         border-radius: 7px;
         background-color: #ffffff;
-        border: 1px solid #cbd5e1;
+        border: 1px solid #e3e8f0;
     }
     #formatRadio::indicator:checked {
-        background-color: #3b82f6;
-        border-color: #3b82f6;
+        background-color: #2f6ee0;
+        border-color: #2f6ee0;
     }
     QScrollBar:vertical {
         background: transparent;
@@ -303,15 +271,15 @@ LIGHT_STYLESHEET = """
         margin: 6px 2px 6px 0;
     }
     QScrollBar::handle:vertical {
-        background: #cbd5e1;
+        background: #e3e8f0;
         border-radius: 4px;
         min-height: 32px;
     }
     QScrollBar::handle:vertical:hover {
-        background: #94a3b8;
+        background: #a7adb8;
     }
     QScrollBar::handle:vertical:pressed {
-        background: #64748b;
+        background: #7c828b;
     }
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
         height: 0;
@@ -327,12 +295,12 @@ LIGHT_STYLESHEET = """
         margin: 0 6px 2px 6px;
     }
     QScrollBar::handle:horizontal {
-        background: #cbd5e1;
+        background: #e3e8f0;
         border-radius: 4px;
         min-width: 32px;
     }
     QScrollBar::handle:horizontal:hover {
-        background: #94a3b8;
+        background: #a7adb8;
     }
     QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
         width: 0;
@@ -342,18 +310,12 @@ LIGHT_STYLESHEET = """
     QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
         background: transparent;
     }
-    #preview, #log {
+    #log {
         background-color: #ffffff;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #e4e8ef;
         border-radius: 12px;
         padding: 10px;
-        color: #1e293b;
-    }
-    #preview {
-        background-color: #f8fafc;
-    }
-    #log {
-        background-color: #f1f5f9;
+        color: #24272d;
     }
     #startBtn {
         background-color: #22c55e;
@@ -367,8 +329,8 @@ LIGHT_STYLESHEET = """
         background-color: #16a34a;
     }
     #startBtn:disabled {
-        background-color: #94a3b8;
-        color: #e2e8f0;
+        background-color: #a7adb8;
+        color: #edf1f7;
     }
     #stopBtn {
         background-color: #ef4444;
@@ -382,85 +344,72 @@ LIGHT_STYLESHEET = """
         background-color: #dc2626;
     }
     #stopBtn:disabled {
-        background-color: #94a3b8;
-        color: #e2e8f0;
+        background-color: #a7adb8;
+        color: #edf1f7;
     }
-    #clearBtn, #helpBtn, #themeBtn, #togglePreviewBtn, #supportBtn {
-        background-color: #e2e8f0;
+    #clearBtn, #helpBtn, #supportBtn {
+        background-color: #edf1f7;
         border: none;
         border-radius: 8px;
         padding: 8px 16px;
-        color: #1e293b;
+        color: #24272d;
     }
-    #clearBtn:hover, #helpBtn:hover, #themeBtn:hover, #togglePreviewBtn:hover, #supportBtn:hover {
-        background-color: #cbd5e1;
+    #clearBtn:hover, #helpBtn:hover, #supportBtn:hover {
+        background-color: #e3e8f0;
     }
     #status {
-        color: #475569;
+        color: #474b52;
     }
     #progress {
-        border: 1px solid #cbd5e1;
+        border: 1px solid #e3e8f0;
         border-radius: 8px;
-        background-color: #e2e8f0;
+        background-color: #edf1f7;
         text-align: center;
         font-size: 8pt;
-        color: #1e293b;
+        color: #24272d;
     }
     #progress::chunk {
-        background-color: #3b82f6;
+        background-color: #2f6ee0;
         border-radius: 7px;
     }
     #tipLabel {
-        color: #475569;
-        background-color: #f1f5f9;
+        color: #474b52;
+        background-color: #eff3f9;
         border-radius: 8px;
         padding: 8px 12px;
         font-size: 9pt;
-    }
-    QScrollBar:vertical {
-        background: #f1f5f9;
-        width: 10px;
-        border-radius: 5px;
-    }
-    QScrollBar::handle:vertical {
-        background: #cbd5e1;
-        border-radius: 5px;
-        min-height: 20px;
-    }
-    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-        height: 0;
     }
     QMessageBox {
         background-color: #ffffff;
     }
     QMessageBox QPushButton {
-        background-color: #e2e8f0;
+        background-color: #edf1f7;
         border: none;
         border-radius: 6px;
         padding: 6px 16px;
-        color: #1e293b;
+        color: #24272d;
     }
     QMessageBox QPushButton:hover {
-        background-color: #cbd5e1;
+        background-color: #e3e8f0;
     }
     #starBtn {
-        background-color: #fef3c7;
+        background-color: #fdf1d6;
         border: 1px solid #f59e0b;
         border-radius: 8px;
         padding: 8px 16px;
-        color: #92400e;
+        color: #7a4a12;
         font-weight: bold;
     }
     #starBtn:hover {
-        background-color: #fde68a;
+        background-color: #fbe4b4;
     }
     #updateBanner {
-        background-color: #fffbeb;
-        border: 1px solid #fcd34d;
+        background-color: #fffaf0;
+        border: 1px solid #f0cd8a;
         border-radius: 8px;
     }
     #updateText {
-        color: #92400e;
+        color: #7a4a12;
         background: transparent;
     }
     #updateLinkBtn {
@@ -476,110 +425,76 @@ LIGHT_STYLESHEET = """
     }
     #updateIgnoreBtn {
         background: transparent;
-        color: #92400e;
+        color: #7a4a12;
         border: none;
         padding: 5px 8px;
     }
     #updateIgnoreBtn:hover {
-        color: #78350f;
+        color: #5f3a0d;
         text-decoration: underline;
     }
 """
 
 DARK_STYLESHEET = """
     QWidget {
-        background-color: #1e1e2e;
-        color: #cdd6f4;
+        background-color: #000000;
+        color: #e6e6e6;
         font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
         font-size: 10pt;
     }
     #titleLabel {
         font-size: 22pt;
         font-weight: bold;
-        color: #89b4fa;
+        color: #5b9bff;
         margin-bottom: 8px;
     }
     #label {
-        color: #a6adc8;
+        color: #a3a3a3;
         padding-right: 8px;
         min-width: 60px;
     }
     #inputField {
-        background-color: #313244;
-        border: 1px solid #45475a;
+        background-color: #141414;
+        border: 1px solid #262626;
         border-radius: 8px;
         padding: 6px 10px;
-        color: #cdd6f4;
+        color: #e6e6e6;
     }
     #inputField:focus {
-        border-color: #89b4fa;
+        border-color: #5b9bff;
     }
     #browseBtn {
-        background-color: #45475a;
+        background-color: #262626;
         border: none;
         border-radius: 8px;
         padding: 6px 16px;
-        color: #cdd6f4;
+        color: #e6e6e6;
     }
     #browseBtn:hover {
-        background-color: #585b70;
+        background-color: #333333;
     }
-    #updatePrefCheck {
-        color: #9399b2;
-        font-size: 8.5pt;
-        spacing: 6px;
-    }
-    #updatePrefCheck::indicator {
-        width: 13px;
-        height: 13px;
-        border-radius: 6px;
-        background-color: #313244;
-        border: 1px solid #45475a;
-    }
-    #updatePrefCheck::indicator:hover {
-        border-color: #585b70;
-    }
-    #updatePrefCheck::indicator:checked {
-        background-color: #89b4fa;
-        border-color: #89b4fa;
-    }
-    #toggleCheck {
-        color: #cdd6f4;
-        spacing: 8px;
-        padding-right: 4px;
-    }
-    #toggleCheck::indicator {
-        width: 14px;
-        height: 14px;
-        border-radius: 7px;
-        background-color: #313244;
-        border: 1px solid #45475a;
-    }
-    #toggleCheck::indicator:hover {
-        border-color: #6c7086;
-    }
-    #toggleCheck::indicator:checked {
-        background-color: #89b4fa;
-        border-color: #89b4fa;
+    #switchLabel {
+        color: #a3a3a3;
+        font-size: 9.5pt;
     }
     #combo {
-        background-color: #313244;
-        border: 1px solid #45475a;
+        background-color: #141414;
+        border: 1px solid #262626;
         border-radius: 8px;
         padding: 4px 8px;
-        color: #cdd6f4;
+        color: #e6e6e6;
         min-width: 70px;
     }
     #combo::drop-down {
         border: none;
     }
     #combo QAbstractItemView {
-        background-color: #313244;
-        color: #cdd6f4;
-        selection-background-color: #89b4fa;
+        background-color: #141414;
+        color: #e6e6e6;
+        selection-background-color: #5b9bff;
     }
     #formatRadio {
-        color: #cdd6f4;
+        color: #e6e6e6;
         spacing: 6px;
         margin-right: 12px;
     }
@@ -587,12 +502,12 @@ DARK_STYLESHEET = """
         width: 14px;
         height: 14px;
         border-radius: 7px;
-        background-color: #313244;
-        border: 1px solid #45475a;
+        background-color: #141414;
+        border: 1px solid #262626;
     }
     #formatRadio::indicator:checked {
-        background-color: #89b4fa;
-        border-color: #89b4fa;
+        background-color: #5b9bff;
+        border-color: #5b9bff;
     }
     QScrollBar:vertical {
         background: transparent;
@@ -600,15 +515,15 @@ DARK_STYLESHEET = """
         margin: 6px 2px 6px 0;
     }
     QScrollBar::handle:vertical {
-        background: #45475a;
+        background: #262626;
         border-radius: 4px;
         min-height: 32px;
     }
     QScrollBar::handle:vertical:hover {
-        background: #585b70;
+        background: #333333;
     }
     QScrollBar::handle:vertical:pressed {
-        background: #7f849c;
+        background: #4a4a4a;
     }
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
         height: 0;
@@ -624,12 +539,12 @@ DARK_STYLESHEET = """
         margin: 0 6px 2px 6px;
     }
     QScrollBar::handle:horizontal {
-        background: #45475a;
+        background: #262626;
         border-radius: 4px;
         min-width: 32px;
     }
     QScrollBar::handle:horizontal:hover {
-        background: #585b70;
+        background: #333333;
     }
     QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
         width: 0;
@@ -639,147 +554,127 @@ DARK_STYLESHEET = """
     QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
         background: transparent;
     }
-    #preview, #log {
-        background-color: #1e1e2e;
-        border: 1px solid #313244;
+    #log {
+        background-color: #0b0b0b;
+        border: 1px solid #262626;
         border-radius: 12px;
         padding: 10px;
-        color: #cdd6f4;
-    }
-    #preview {
-        background-color: #11111b;
-        border-color: #45475a;
-    }
-    #log {
-        background-color: #0f0f1a;
+        color: #e6e6e6;
     }
     #startBtn {
-        background-color: #a6e3a1;
-        color: #1e1e2e;
+        background-color: #22c55e;
+        color: #000000;
         border: none;
         border-radius: 8px;
         padding: 8px 24px;
         font-weight: bold;
     }
     #startBtn:hover {
-        background-color: #94d78f;
+        background-color: #16a34a;
     }
     #startBtn:disabled {
-        background-color: #45475a;
-        color: #6c7086;
+        background-color: #262626;
+        color: #6b6b6b;
     }
     #stopBtn {
-        background-color: #f28b82;
-        color: #1e1e2e;
+        background-color: #ef4444;
+        color: #000000;
         border: none;
         border-radius: 8px;
         padding: 8px 24px;
         font-weight: bold;
     }
     #stopBtn:hover {
-        background-color: #e06c6c;
+        background-color: #dc2626;
     }
     #stopBtn:disabled {
-        background-color: #45475a;
-        color: #6c7086;
+        background-color: #262626;
+        color: #6b6b6b;
     }
-    #clearBtn, #helpBtn, #themeBtn, #togglePreviewBtn, #supportBtn {
-        background-color: #45475a;
+    #clearBtn, #helpBtn, #supportBtn {
+        background-color: #262626;
         border: none;
         border-radius: 8px;
         padding: 8px 16px;
-        color: #cdd6f4;
+        color: #e6e6e6;
     }
-    #clearBtn:hover, #helpBtn:hover, #themeBtn:hover, #togglePreviewBtn:hover, #supportBtn:hover {
-        background-color: #585b70;
+    #clearBtn:hover, #helpBtn:hover, #supportBtn:hover {
+        background-color: #333333;
     }
     #status {
-        color: #a6adc8;
+        color: #a3a3a3;
     }
     #progress {
-        border: 1px solid #45475a;
+        border: 1px solid #262626;
         border-radius: 8px;
-        background-color: #313244;
+        background-color: #141414;
         text-align: center;
         font-size: 8pt;
-        color: #cdd6f4;
+        color: #e6e6e6;
     }
     #progress::chunk {
-        background-color: #89b4fa;
+        background-color: #5b9bff;
         border-radius: 7px;
     }
     #tipLabel {
-        color: #a6adc8;
-        background-color: #2a2a3e;
+        color: #a3a3a3;
+        background-color: #141414;
         border-radius: 8px;
         padding: 8px 12px;
         font-size: 9pt;
     }
-    QScrollBar:vertical {
-        background: #1e1e2e;
-        width: 10px;
-        border-radius: 5px;
-    }
-    QScrollBar::handle:vertical {
-        background: #45475a;
-        border-radius: 5px;
-        min-height: 20px;
-    }
-    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-        height: 0;
-    }
     QMessageBox {
-        background-color: #1e1e2e;
+        background-color: #000000;
     }
     QMessageBox QPushButton {
-        background-color: #45475a;
+        background-color: #262626;
         border: none;
         border-radius: 6px;
         padding: 6px 16px;
-        color: #cdd6f4;
+        color: #e6e6e6;
     }
     QMessageBox QPushButton:hover {
-        background-color: #585b70;
+        background-color: #333333;
     }
     #starBtn {
-        background-color: #3a2f1b;
-        border: 1px solid #f9e2af;
+        background-color: #ffffff;
+        border: 1px solid #fbbf24;
         border-radius: 8px;
         padding: 8px 16px;
-        color: #f9e2af;
+        color: #fbbf24;
         font-weight: bold;
     }
     #starBtn:hover {
-        background-color: #4d3f24;
+        background-color: #2a2210;
     }
     #updateBanner {
-        background-color: #3b3320;
-        border: 1px solid #7c6320;
+        background-color: #ffffff;
+        border: 1px solid #7a5410;
         border-radius: 8px;
     }
     #updateText {
-        color: #f9e2af;
+        color: #fbbf24;
         background: transparent;
     }
     #updateLinkBtn {
-        background-color: #f9e2af;
-        color: #1e1e2e;
+        background-color: #fbbf24;
+        color: #000000;
         border: none;
         border-radius: 6px;
         padding: 5px 14px;
         font-weight: bold;
     }
     #updateLinkBtn:hover {
-        background-color: #f5d98b;
+        background-color: #fcd34d;
     }
     #updateIgnoreBtn {
         background: transparent;
-        color: #c9b98a;
+        color: #b9a97e;
         border: none;
         padding: 5px 8px;
     }
     #updateIgnoreBtn:hover {
-        color: #f9e2af;
+        color: #fbbf24;
         text-decoration: underline;
     }
 """
@@ -788,86 +683,112 @@ DARK_STYLESHEET = """
 # -------------------- 支持作者弹窗样式 --------------------
 # 单独写一套，不继承主窗口的 QWidget 规则：弹窗里控件少，字号和间距才好控制
 SUPPORT_QSS_LIGHT = """
-    QDialog { background-color: #ffffff; }
-    QLabel { color: #334155; background: transparent; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
-    QLabel#supportTitle { color: #0f172a; font-size: 15pt; font-weight: bold; }
-    QLabel#supportSub { color: #8a97a8; font-size: 9pt; }
-    QLabel#supportDesc { color: #475569; font-size: 10pt; }
-    QLabel#supportHint { color: #9aa6b6; font-size: 8.5pt; }
-    QFrame#supportCard { background-color: #f7f9fc; border: 1px solid #e6ecf4; border-radius: 14px; }
+    QDialog { background-color: #fbfaf9; }
+    QLabel { color: #3c4048; background: transparent; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+    QLabel#supportTitle { color: #1c1a18; font-size: 15pt; font-weight: bold; }
+    QLabel#supportSub { color: #7c828b; font-size: 9pt; }
+    QLabel#supportDesc { color: #474b52; font-size: 10pt; }
+    QLabel#supportHint { color: #a49e95; font-size: 8.5pt; }
+    QFrame#supportCard { background-color: #f6f3ef; border: 1px solid #e8e3dc; border-radius: 14px; }
     QPushButton {
         font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
         font-size: 10pt; border-radius: 9px; padding: 9px 0; min-width: 108px;
     }
     QPushButton#afdianBtn {
-        background-color: #8b5cf6; color: #ffffff; border: none; font-weight: 600;
+        background-color: #2f6ee0; color: #fbfaf9; border: none; font-weight: 600;
         min-width: 96px; padding: 9px 16px;
     }
-    QPushButton#afdianBtn:hover { background-color: #7c4dea; }
-    QPushButton#afdianBtn:pressed { background-color: #6d3fd6; }
-    QPushButton#closeBtn { background-color: #f1f5f9; color: #334155; border: 1px solid #dbe3ec; }
-    QPushButton#closeBtn:hover { background-color: #e7eef7; }
+    QPushButton#afdianBtn:hover { background-color: #2560c9; }
+    QPushButton#afdianBtn:pressed { background-color: #1d4fae; }
+    QPushButton#closeBtn { background-color: #eff3f9; color: #3c4048; border: 1px solid #e4e8ef; }
+    QPushButton#closeBtn:hover { background-color: #e6ecf4; }
     QLabel#doneBadge, QLabel#doneBadgeWarn {
         border-radius: 10px; font-size: 15pt; font-weight: bold;
     }
-    QLabel#doneBadge { background-color: #e9f9ef; color: #16a34a; }
+    QLabel#doneBadge { background-color: #e8f6ed; color: #16a34a; }
     QLabel#doneBadgeWarn { background-color: #fef3c7; color: #d97706; }
-    QLabel#doneTitle { color: #0f172a; font-size: 13pt; font-weight: bold; }
-    QFrame#doneRow { background: transparent; border-bottom: 1px solid #f2f4f9; }
-    QLabel#doneKey { color: #8b93a7; font-size: 9.5pt; }
-    QLabel#doneVal { color: #0f172a; font-size: 10pt; font-weight: 600; }
+    QLabel#doneTitle { color: #1c1a18; font-size: 13pt; font-weight: bold; }
+    QFrame#doneRow { background: transparent; border-bottom: 1px solid #ecf0f6; }
+    QLabel#doneKey { color: #7c828b; font-size: 9.5pt; }
+    QLabel#doneVal { color: #1c1a18; font-size: 10pt; font-weight: 600; }
     QLabel#doneValBad { color: #e11d48; font-size: 10pt; font-weight: 600; }
-    QLabel#doneValMono { color: #475569; font-size: 9pt; font-family: Consolas, "Cascadia Mono", monospace; }
+    QLabel#doneValMono { color: #474b52; font-size: 9pt; font-family: Consolas, "Cascadia Mono", monospace; }
     QPushButton#linkBtn {
-        background: transparent; border: none; color: #7c5cff;
+        background: transparent; border: none; color: #2f6ee0;
         font-size: 9.5pt; font-weight: 600; padding: 6px 4px; min-width: 0;
     }
-    QPushButton#linkBtn:hover { color: #6d3fd6; }
+    QPushButton#linkBtn:hover { color: #1d4fae; }
     QPushButton#doneCloseBtn {
-        background-color: #f1f5f9; color: #334155; border: 1px solid #dbe3ec;
+        background-color: #eff3f9; color: #3c4048; border: 1px solid #e4e8ef;
         min-width: 72px; padding: 9px 14px;
     }
-    QPushButton#doneCloseBtn:hover { background-color: #e7eef7; }
+    QPushButton#doneCloseBtn:hover { background-color: #e6ecf4; }
+    QFrame#troubleBox {
+        background-color: #f3f7fd; border: 1px solid #d8e4f6; border-radius: 12px;
+    }
+    QLabel#troubleHead { color: #4a6fa5; font-size: 9pt; font-weight: 600; }
+    QLabel#troubleNum {
+        background-color: #d7e4f7; color: #2a5596; border-radius: 9px;
+        font-size: 8pt; font-weight: bold;
+    }
+    QLabel#troubleText { color: #474b52; font-size: 9pt; }
+    QLabel#doneNote {
+        color: #3d5f92; background-color: #eef4fd; border-radius: 9px;
+        padding: 9px 12px; font-size: 9pt;
+    }
 """
 
 SUPPORT_QSS_DARK = """
-    QDialog { background-color: #1b212b; }
-    QLabel { color: #cbd5e1; background: transparent; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
-    QLabel#supportTitle { color: #f1f5f9; font-size: 15pt; font-weight: bold; }
-    QLabel#supportSub { color: #8492a6; font-size: 9pt; }
-    QLabel#supportDesc { color: #c2ccda; font-size: 10pt; }
-    QLabel#supportHint { color: #7b8798; font-size: 8.5pt; }
-    QFrame#supportCard { background-color: #ffffff; border: 1px solid #2b3442; border-radius: 14px; }
+    QDialog { background-color: #0a0a0a; }
+    QLabel { color: #d4d4d4; background: transparent; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; }
+    QLabel#supportTitle { color: #f1f1f1; font-size: 15pt; font-weight: bold; }
+    QLabel#supportSub { color: #8a8a8a; font-size: 9pt; }
+    QLabel#supportDesc { color: #c4c4c4; font-size: 10pt; }
+    QLabel#supportHint { color: #7a7a7a; font-size: 8.5pt; }
+    QFrame#supportCard { background-color: #ffffff; border: 1px solid #1e1e1e; border-radius: 14px; }
     QPushButton {
         font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
         font-size: 10pt; border-radius: 9px; padding: 9px 0; min-width: 108px;
     }
-    QPushButton#afdianBtn { background-color: #8b5cf6; color: #ffffff; border: none; font-weight: 600; }
-    QPushButton#afdianBtn:hover { background-color: #9a72f8; }
-    QPushButton#afdianBtn:pressed { background-color: #7c4dea; }
-    QPushButton#closeBtn { background-color: #2a323d; color: #cbd5e1; border: 1px solid #3a4553; }
-    QPushButton#closeBtn:hover { background-color: #333c49; }
+    QPushButton#afdianBtn { background-color: #2f6ee0; color: #ffffff; border: none; font-weight: 600; }
+    QPushButton#afdianBtn:hover { background-color: #3f7dd8; }
+    QPushButton#afdianBtn:pressed { background-color: #2560c9; }
+    QPushButton#closeBtn { background-color: #141414; color: #d4d4d4; border: 1px solid #2a2a2a; }
+    QPushButton#closeBtn:hover { background-color: #1f1f1f; }
     QLabel#doneBadge, QLabel#doneBadgeWarn {
         border-radius: 10px; font-size: 15pt; font-weight: bold;
     }
-    QLabel#doneBadge { background-color: #16301f; color: #4ade80; }
-    QLabel#doneBadgeWarn { background-color: #332a13; color: #fbbf24; }
-    QLabel#doneTitle { color: #f1f5f9; font-size: 13pt; font-weight: bold; }
-    QFrame#doneRow { background: transparent; border-bottom: 1px solid #2a2d42; }
-    QLabel#doneKey { color: #8492a6; font-size: 9.5pt; }
-    QLabel#doneVal { color: #e2e8f0; font-size: 10pt; font-weight: 600; }
+    QLabel#doneBadge { background-color: #0f2417; color: #4ade80; }
+    QLabel#doneBadgeWarn { background-color: #2a2109; color: #fbbf24; }
+    QLabel#doneTitle { color: #f1f1f1; font-size: 13pt; font-weight: bold; }
+    QFrame#doneRow { background: transparent; border-bottom: 1px solid #1a1a1a; }
+    QLabel#doneKey { color: #8a8a8a; font-size: 9.5pt; }
+    QLabel#doneVal { color: #e6e6e6; font-size: 10pt; font-weight: 600; }
     QLabel#doneValBad { color: #fb7185; font-size: 10pt; font-weight: 600; }
-    QLabel#doneValMono { color: #cbd5e1; font-size: 9pt; font-family: Consolas, "Cascadia Mono", monospace; }
+    QLabel#doneValMono { color: #d4d4d4; font-size: 9pt; font-family: Consolas, "Cascadia Mono", monospace; }
     QPushButton#linkBtn {
-        background: transparent; border: none; color: #a78bfa;
+        background: transparent; border: none; color: #5b9bff;
         font-size: 9.5pt; font-weight: 600; padding: 6px 4px; min-width: 0;
     }
-    QPushButton#linkBtn:hover { color: #c4b5fd; }
+    QPushButton#linkBtn:hover { color: #9cc4ff; }
     QPushButton#doneCloseBtn {
-        background-color: #2a323d; color: #cbd5e1; border: 1px solid #3a4553;
+        background-color: #141414; color: #d4d4d4; border: 1px solid #2a2a2a;
         min-width: 72px; padding: 9px 14px;
     }
-    QPushButton#doneCloseBtn:hover { background-color: #333c49; }
+    QPushButton#doneCloseBtn:hover { background-color: #1f1f1f; }
+    QFrame#troubleBox {
+        background-color: #0d1420; border: 1px solid #1d2a40; border-radius: 12px;
+    }
+    QLabel#troubleHead { color: #8fb4ee; font-size: 9pt; font-weight: 600; }
+    QLabel#troubleNum {
+        background-color: #1d2b45; color: #b9d0f7; border-radius: 9px;
+        font-size: 8pt; font-weight: bold;
+    }
+    QLabel#troubleText { color: #cfcac2; font-size: 9pt; }
+    QLabel#doneNote {
+        color: #b9cff2; background-color: #101a2b; border-radius: 9px;
+        padding: 9px 12px; font-size: 9pt;
+    }
 """
 
 
@@ -916,11 +837,315 @@ def format_duration(seconds):
     return f"{minutes} 分 {secs} 秒"
 
 
+# -------------------- 自绘开关 --------------------
+# 原生 QCheckBox 的方框太「工具」，这里自己画一个胶囊滑轨，三种开关共用一套逻辑
+SWITCH_COLORS = {
+    "light": {
+        "track_off": "#e4e8ef", "track_off_hover": "#d6dce7",
+        "track_on": "#2f6ee0", "track_on_hover": "#2560c9",
+        "knob": "#ffffff", "knob_border": "#d3d9e3",
+        "icon_off": "#7c828b", "icon_on": "#2f6ee0",
+    },
+    "dark": {
+        "track_off": "#2a2a2a", "track_off_hover": "#363636",
+        "track_on": "#5b9bff", "track_on_hover": "#7db1ff",
+        "knob": "#f2f2f2", "knob_border": "#000000",
+        "icon_off": "#8a8a8a", "icon_on": "#5b9bff",
+    },
+}
+
+
+# 主题那颗开关单独一套色：关着＝白天（淡蓝天空 + 太阳），打开＝夜里（深蓝夜空 + 月亮）
+THEME_SWITCH_COLORS = {
+    "light": {
+        "track_a": "#eef5ff", "track_b": "#d9e7fb", "border": "#cbdaef",
+        "knob": "#ffffff", "knob_border": "#d5e0ef",
+        "sun_core": "#ffdd7d", "sun_edge": "#f3962a", "ray": "#ef9f22",
+        "deco": "#b8c7de",
+    },
+    "dark": {
+        "track_a": "#3a4d78", "track_b": "#1b2740", "border": "#17223a",
+        "knob": "#fdf9ee", "knob_border": "#cfd9ee",
+        "moon": "#e9c87e", "sparkle": "#b9d2ff", "crater": "#d4b269", "deco": "#eaf2ff",
+    },
+}
+
+
+def _paint_sparkle(painter, cx, cy, r, color):
+    """四角星光，小尺寸下比圆点更像「星」。"""
+    path = QPainterPath()
+    path.moveTo(cx, cy - r)
+    path.quadTo(cx, cy, cx + r, cy)
+    path.quadTo(cx, cy, cx, cy + r)
+    path.quadTo(cx, cy, cx - r, cy)
+    path.quadTo(cx, cy, cx, cy - r)
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(color)
+    painter.drawPath(path)
+
+
+def _paint_sun(painter, cx, cy, r, core, edge, ray):
+    """暖黄太阳：一圈柔光 + 渐变圆盘 + 八根圆头光芒 + 左上高光。"""
+    glow = QRadialGradient(QPointF(cx, cy), r * 1.55)
+    glow.setColorAt(0.0, QColor(255, 206, 110, 55))
+    glow.setColorAt(1.0, QColor(255, 206, 110, 0))
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(glow)
+    painter.drawEllipse(QPointF(cx, cy), r * 1.55, r * 1.55)
+
+    grad = QRadialGradient(QPointF(cx - r * 0.28, cy - r * 0.32), r * 1.8)
+    grad.setColorAt(0.0, QColor(core))
+    grad.setColorAt(1.0, QColor(edge))
+    painter.setBrush(grad)
+    painter.drawEllipse(QPointF(cx, cy), r * 0.74, r * 0.74)
+
+    pen = QPen(QColor(ray), max(1.15, r * 0.18))
+    pen.setCapStyle(Qt.RoundCap)
+    painter.setPen(pen)
+    for i in range(8):
+        a = math.pi / 4 * i
+        dx, dy = math.cos(a), math.sin(a)
+        painter.drawLine(QPointF(cx + dx * r * 1.06, cy + dy * r * 1.06),
+                         QPointF(cx + dx * r * 1.38, cy + dy * r * 1.38))
+
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QColor(255, 255, 255, 160))
+    painter.drawEllipse(QPointF(cx - r * 0.24, cy - r * 0.3), r * 0.18, r * 0.14)
+
+
+def _paint_moon(painter, cx, cy, r, color, sparkle=None, crater=None):
+    """暖金月牙（一个圆减去偏移的另一个圆），带两个浅坑，右上角再点一颗小星。"""
+    body = QPainterPath()
+    body.addEllipse(QPointF(cx, cy), r, r)
+    bite = QPainterPath()
+    bite.addEllipse(QPointF(cx + r * 0.58, cy - r * 0.46), r * 0.86, r * 0.86)
+    crescent = body.subtracted(bite)
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(QColor(color))
+    painter.drawPath(crescent)
+
+    if crater:
+        painter.setClipPath(crescent)
+        painter.setBrush(QColor(crater))
+        painter.drawEllipse(QPointF(cx - r * 0.12, cy - r * 0.16), r * 0.2, r * 0.2)
+        painter.drawEllipse(QPointF(cx - r * 0.02, cy + r * 0.42), r * 0.13, r * 0.13)
+        painter.setClipping(False)
+
+    if sparkle:
+        _paint_sparkle(painter, cx + r * 1.12, cy - r * 0.95,
+                       max(1.6, r * 0.4), QColor(sparkle))
+
+
+class SwitchButton(QAbstractButton):
+    """胶囊开关：可点击/空格切换，滑块带缓动动画，主题切换时自动换色。"""
+
+    def __init__(self, parent=None, checked=False, dark=False,
+                 width=44, height=24, glyph=""):
+        super().__init__(parent)
+        self._w, self._h = width, height
+        self._glyph = glyph            # ""=纯色开关 / "theme"=滑块里带太阳月亮
+        self._pos = 1.0 if checked else 0.0
+        self._hover = False
+        self._syncing = False
+        self._colors = SWITCH_COLORS["dark" if dark else "light"]
+        self.setCheckable(True)
+        self.setChecked(checked)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFocusPolicy(Qt.StrongFocus)
+        self.setFixedSize(width, height)
+        self._anim = QPropertyAnimation(self, b"knobPos", self)
+        self._anim.setDuration(260)
+        self._anim.setEasingCurve(QEasingCurve.OutCubic)
+        self._icon_t = 1.0        # 图标进出场进度：0=刚切换 1=已到位
+        self._exit_on = checked   # 这次切换之前显示的是哪个图标
+        self._icon_anim = QPropertyAnimation(self, b"iconT", self)
+        self._icon_anim.setDuration(640)
+        self._icon_anim.setEasingCurve(QEasingCurve.OutCubic)
+        self.toggled.connect(self._slide)
+
+    # 滑块位置 0=关 1=开，交给动画去推
+    def _get_knob_pos(self):
+        return self._pos
+
+    def _set_knob_pos(self, value):
+        self._pos = float(value)
+        self.update()
+
+    knobPos = Property(float, _get_knob_pos, _set_knob_pos)
+
+    def _get_icon_t(self):
+        return self._icon_t
+
+    def _set_icon_t(self, value):
+        self._icon_t = float(value)
+        self.update()
+
+    iconT = Property(float, _get_icon_t, _set_icon_t)
+
+    def _slide(self, checked):
+        if self._syncing:      # 程序化设值（启动恢复主题）不走动画
+            self._pos = 1.0 if checked else 0.0
+            self._icon_t = 1.0
+            self._exit_on = checked
+            self.update()
+            return
+        self._exit_on = not checked
+        self._anim.stop()
+        self._anim.setStartValue(self._pos)
+        self._anim.setEndValue(1.0 if checked else 0.0)
+        self._anim.start()
+        if self._glyph == "theme":
+            self._icon_anim.stop()
+            self._icon_anim.setStartValue(0.0)
+            self._icon_anim.setEndValue(1.0)
+            self._icon_anim.start()
+
+    def set_dark(self, dark):
+        self._colors = SWITCH_COLORS["dark" if dark else "light"]
+        self.update()
+
+    def setChecked(self, checked):  # noqa: N802 - Qt 命名
+        self._pos = 1.0 if checked else 0.0
+        self._icon_t = 1.0
+        self._exit_on = checked
+        self._syncing = True
+        try:
+            super().setChecked(checked)
+        finally:
+            self._syncing = False
+        self.update()
+
+    def enterEvent(self, event):
+        self._hover = True
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        self._hover = False
+        self.update()
+        super().leaveEvent(event)
+
+    def sizeHint(self):
+        return QSize(self._w, self._h)
+
+    def _paint_theme_track(self, p, r, radius, on):
+        """主题开关的轨道：白天淡蓝天空、夜里深蓝夜空，切换时两层交叉淡入。"""
+        pos = min(1.0, max(0.0, self._pos))
+        if 0.0 < pos < 1.0 and self._exit_on != on:
+            self._paint_theme_layer(p, r, radius, self._exit_on, 1.0)
+            self._paint_theme_layer(p, r, radius, on, pos)
+        else:
+            self._paint_theme_layer(p, r, radius, on, 1.0)
+
+    def _paint_theme_layer(self, p, r, radius, on, alpha):
+        c = THEME_SWITCH_COLORS["dark" if on else "light"]
+        p.setOpacity(alpha)
+        grad = QLinearGradient(r.topLeft(), r.bottomLeft())
+        grad.setColorAt(0.0, QColor(c["track_a"]))
+        grad.setColorAt(1.0, QColor(c["track_b"]))
+        p.setPen(QPen(QColor(c["border"]), 1))
+        p.setBrush(grad)
+        p.drawRoundedRect(r, radius, radius)
+
+        p.setPen(Qt.NoPen)
+        if on:      # 月亮在右边，左边空着 —— 撒两颗星
+            _paint_sparkle(p, r.left() + 14.0, r.center().y() - 4.6, 3.1, QColor(c["deco"]))
+            _paint_sparkle(p, r.left() + 23.5, r.center().y() + 5.2, 1.9, QColor(c["deco"]))
+        else:       # 太阳在左边，右边空着 —— 落几点细沙
+            p.setBrush(QColor(c["deco"]))
+            p.drawEllipse(QPointF(r.right() - 13.0, r.center().y() - 4.2), 2.1, 2.1)
+            p.drawEllipse(QPointF(r.right() - 20.5, r.center().y() + 5.0), 1.3, 1.3)
+            p.drawEllipse(QPointF(r.right() - 8.6, r.center().y() + 6.0), 1.0, 1.0)
+        p.setOpacity(1.0)
+
+    def paintEvent(self, event):
+        on = self.isChecked()
+        r = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        radius = r.height() / 2
+
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing, True)
+
+        if self._glyph == "theme":
+            self._paint_theme_track(p, r, radius, on)
+            c = THEME_SWITCH_COLORS["dark" if on else "light"]
+        else:
+            c = self._colors
+            if on:
+                track = c["track_on_hover"] if self._hover else c["track_on"]
+            else:
+                track = c["track_off_hover"] if self._hover else c["track_off"]
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(track))
+            p.drawRoundedRect(r, radius, radius)
+
+        margin = 3.0
+        d = r.height() - margin * 2
+        x = margin + (r.width() - d - margin * 2) * self._pos
+        knob = QRectF(r.left() + x, r.top() + margin, d, d)
+
+        # 滑块底下垫一层淡影，浅色轨道上才有层次
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(0, 0, 0, 30))
+        p.drawEllipse(knob.translated(0, 1.2))
+
+        p.setPen(QPen(QColor(c["knob_border"]), 1))
+        p.setBrush(QColor(c["knob"]))
+        p.drawEllipse(knob)
+
+        cx, cy = knob.center().x(), knob.center().y()
+        if self._glyph == "theme":
+            # 图标＝当前主题：前段旧图标退场，后段新图标进场，留一点交叠免得中间空一拍
+            t = min(1.0, max(0.0, self._icon_t))
+            out_t = min(1.0, t / 0.5)
+            in_t = max(0.0, min(1.0, (t - 0.2) / 0.8))
+            if out_t < 1.0:
+                self._paint_theme_icon(p, self._exit_on, cx, cy, d, out_t, True)
+            self._paint_theme_icon(p, on, cx, cy, d, in_t, False)
+
+        if self.hasFocus():
+            p.setBrush(Qt.NoBrush)
+            p.setPen(QPen(QColor(self._colors["track_on"]), 1.4))
+            p.drawRoundedRect(QRectF(self.rect()).adjusted(1.2, 1.2, -1.2, -1.2), radius, radius)
+        p.end()
+
+    def _paint_theme_icon(self, p, on, cx, cy, d, progress, exiting):
+        """太阳绕中心转进来/转出去；月亮从下面升上来/沉下去。"""
+        c = THEME_SWITCH_COLORS["dark" if on else "light"]
+        r = d * 0.30
+        if exiting:
+            phase, alpha = progress, (1.0 - progress) ** 1.6
+        else:
+            phase, alpha = 1.0 - progress, progress ** 1.6
+        p.save()
+        p.setOpacity(max(0.0, min(1.0, alpha)))
+        if on:
+            p.translate(cx, cy + 7.0 * phase)
+            p.rotate((14.0 if exiting else -14.0) * phase)
+            _paint_moon(p, 0.0, 0.0, r, c["moon"], c.get("sparkle"), c.get("crater"))
+        else:
+            p.translate(cx, cy)
+            p.rotate((110.0 if exiting else -110.0) * phase)
+            _paint_sun(p, 0.0, 0.0, r, c["sun_core"], c["sun_edge"], c["ray"])
+        p.restore()
+
+
+class ClickableLabel(QLabel):
+    """点一下等于点到旁边的开关，免得手指非要精准点进滑块。"""
+
+    clicked = Signal()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+
 # -------------------- 主窗口 --------------------
 class TuneFreeWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"TuneFree {VERSION}")
+        self.setWindowTitle(f"TuneFree-{VERSION}")
         self.setMinimumSize(950, 780)
 
         # 后端命令行程序：打包后是 main.exe；源码直接运行时回退到 python main.py
@@ -928,8 +1153,11 @@ class TuneFreeWindow(QMainWindow):
         self.dev_script = app_dir() / "main.py"
         self.process = None
         self.running = False
-        self.settings, self._settings_path = make_settings()
+        self.settings, _ = make_settings()
         self.is_dark = self._saved_bool("ui/dark", False)  # 首次运行默认亮色
+        self._fade_overlay = None   # 换主题时盖在窗口上的旧主题截图
+        self._fade_anim = None
+        self._pre_theme_shot = None  # 按下主题开关时拍的旧窗口
         self.decrypt_stats = None  # (成功数, 失败数)，用于判断这次是否真的转出了文件
         self.transcode_stats = None  # (成功数, 失败数)，转码阶段的结果
         self._star_prompted = False  # 本次运行内已弹过，避免设置存不下时反复打扰
@@ -946,7 +1174,6 @@ class TuneFreeWindow(QMainWindow):
 
         self.setup_ui()
         self.apply_stylesheet()
-        self.theme_btn.setText("☀️" if self.is_dark else "🌙")
 
         saved_geo = self.settings.value("ui/geometry")
         if saved_geo is not None:
@@ -990,8 +1217,8 @@ class TuneFreeWindow(QMainWindow):
         self.bitrate_combo.setCurrentText(bitrate)
         fmt = s.value("out/format", "mp3")
         {"flac": self.format_flac, "both": self.format_both}.get(fmt, self.format_mp3).setChecked(True)
-        self.overwrite_check.setChecked(self._saved_bool("out/force", False))
-        self.check_update_check.setChecked(self._saved_bool("ui/check_update", True))
+        self.overwrite_switch.setChecked(self._saved_bool("out/force", False))
+        self.check_update_switch.setChecked(self._saved_bool("ui/check_update", True))
 
     def save_settings(self):
         s = self.settings
@@ -1000,8 +1227,8 @@ class TuneFreeWindow(QMainWindow):
             s.setValue("path/root", self.root_edit.text().strip())
             s.setValue("out/bitrate", self.bitrate_combo.currentText())
             s.setValue("out/format", self.get_output_format())
-            s.setValue("out/force", self.overwrite_check.isChecked())
-            s.setValue("ui/check_update", self.check_update_check.isChecked())
+            s.setValue("out/force", self.overwrite_switch.isChecked())
+            s.setValue("ui/check_update", self.check_update_switch.isChecked())
             s.sync()
         except Exception:
             pass
@@ -1055,10 +1282,14 @@ class TuneFreeWindow(QMainWindow):
         self.support_btn.clicked.connect(self.open_support)
         title_layout.addWidget(self.support_btn)
         
-        self.theme_btn = QPushButton("🌙")
-        self.theme_btn.setObjectName("themeBtn")
-        self.theme_btn.clicked.connect(self.toggle_theme)
-        title_layout.addWidget(self.theme_btn)
+        self.theme_switch = SwitchButton(
+            checked=self.is_dark, dark=self.is_dark, width=64, height=30, glyph="theme")
+        self.theme_switch.setToolTip("在明亮 / 黑夜主题之间切换，选择会被记住。")
+        self.theme_switch.setAccessibleName("切换主题")
+        self.theme_switch.toggled.connect(self.set_theme)
+        # 按下（还没切状态）就先拍一张，换主题时拿它做淡出，否则截图里开关已经是新颜色了
+        self.theme_switch.pressed.connect(self._snapshot_before_theme)
+        title_layout.addWidget(self.theme_switch)
         
         main_layout.addLayout(title_layout)
 
@@ -1082,12 +1313,19 @@ class TuneFreeWindow(QMainWindow):
 
         # 第二行：重新生成开关 / 比特率 / 输出格式
         row2 = QHBoxLayout()
-        self.overwrite_check = QCheckBox("重新生成已存在的 MP3")
-        self.overwrite_check.setObjectName("toggleCheck")
-        self.overwrite_check.setToolTip(
-            "默认跳过已经生成过的 MP3，同一批歌再跑一次会快很多。\n勾选后即使 MP3 已存在也会重新转码（改了比特率时用得上）。")
-        row2.addWidget(self.overwrite_check)
-        row2.addSpacing(24)
+        row2.setSpacing(8)
+        self.overwrite_label = ClickableLabel("重新生成已存在的 MP3")
+        self.overwrite_label.setObjectName("switchLabel")
+        self.overwrite_label.setCursor(Qt.PointingHandCursor)
+        self.overwrite_switch = SwitchButton(dark=self.is_dark, width=42, height=22)
+        self.overwrite_switch.setAccessibleName("重新生成已存在的 MP3")
+        self.overwrite_switch.setToolTip(
+            "默认跳过已经生成过的 MP3，同一批歌再跑一次会快很多。\n打开后即使 MP3 已存在也会重新转码（改了比特率时用得上）。")
+        # 点文字也能切换，省得非要点到那个小滑块
+        self.overwrite_label.clicked.connect(self.overwrite_switch.toggle)
+        row2.addWidget(self.overwrite_label)
+        row2.addWidget(self.overwrite_switch)
+        row2.addSpacing(18)
 
         label_bitrate = QLabel("比特率")
         label_bitrate.setObjectName("label")
@@ -1143,6 +1381,7 @@ class TuneFreeWindow(QMainWindow):
         self.log.setObjectName("log")
         self.log.setReadOnly(True)
         self.log.setFont(QFont("Consolas", 9))
+        self.log.document().setMaximumBlockCount(5000)   # 长时间跑大目录时别让日志把内存吃满
         self.log.setToolTip("程序运行过程中的详细日志，包括解密进度、转码状态和错误信息。")
         main_layout.addWidget(self.log, 1)
 
@@ -1195,34 +1434,102 @@ class TuneFreeWindow(QMainWindow):
         self.check_update_btn.clicked.connect(self.manual_check_update)
         self.check_update_btn.setToolTip(f"当前版本 {VERSION}，点一下看看有没有新版。")
 
-        self.check_update_check = QCheckBox("启动时自动检查更新")
-        self.check_update_check.setObjectName("updatePrefCheck")
-        self.check_update_check.setToolTip(
+        self.update_pref_label = ClickableLabel("启动时自动检查更新")
+        self.update_pref_label.setObjectName("switchLabel")
+        self.update_pref_label.setCursor(Qt.PointingHandCursor)
+        self.update_pref_label.setToolTip(
             "启动后静默查一次有没有新版本（不会自动下载、不会自动更新）。\n网络不通时什么都不会发生。")
-        self.check_update_check.stateChanged.connect(lambda: self.settings.setValue(
-            "ui/check_update", self.check_update_check.isChecked()))
+        self.check_update_switch = SwitchButton(dark=self.is_dark, width=42, height=22)
+        self.check_update_switch.setAccessibleName("启动时自动检查更新")
+        self.check_update_switch.setToolTip(self.update_pref_label.toolTip())
+        self.update_pref_label.clicked.connect(self.check_update_switch.toggle)
+        self.check_update_switch.toggled.connect(
+            lambda checked: self.settings.setValue("ui/check_update", checked))
 
-        bottom.addWidget(self.check_update_check)
-        bottom.addSpacing(8)
+        bottom.addWidget(self.update_pref_label)
+        bottom.addWidget(self.check_update_switch)
+        bottom.addSpacing(10)
         bottom.addWidget(self.start_btn)
         bottom.addWidget(self.stop_btn)
         bottom.addWidget(self.check_update_btn)
         bottom.addWidget(self.clear_btn)
         bottom.addWidget(self.help_btn)
         main_layout.addLayout(bottom)
-    def toggle_theme(self):
-        self.is_dark = not self.is_dark
+
+    def set_theme(self, dark, animate=True):
+        """主题开关的唯一入口：换样式表、同步三个开关的配色、落盘。
+
+        点开关时先把旧主题「拍下来」盖在新界面上再淡出，整窗换色就不是硬切了；
+        启动恢复主题走 animate=False，不闪。
+        """
+        dark = bool(dark)
+        changed = dark != self.is_dark
+        snapshot = None
+        if animate and changed and self.isVisible():
+            fresh = (self._pre_theme_shot is not None
+                     and time.monotonic() - self._pre_theme_shot_at < 1.5)
+            snapshot = self._pre_theme_shot if fresh else self.grab()
+            self._pre_theme_shot = None
+        self.is_dark = dark
         self.apply_stylesheet()
-        if self.is_dark:
-            self.theme_btn.setText("☀️")
-        else:
-            self.theme_btn.setText("🌙")
+        for switch in (self.theme_switch, self.overwrite_switch, self.check_update_switch):
+            switch.set_dark(self.is_dark)
+        if snapshot is not None:
+            self._fade_from_snapshot(snapshot)
         # 立刻落盘：就算程序被强制关掉，下次进来也是这个主题
         try:
             self.settings.setValue("ui/dark", self.is_dark)
             self.settings.sync()
         except Exception:
             pass
+
+    def _snapshot_before_theme(self):
+        """在开关状态还没翻转前拍一张当前窗口，供 set_theme 做淡出。"""
+        try:
+            self._pre_theme_shot = self.grab()
+            self._pre_theme_shot_at = time.monotonic()
+        except RuntimeError:
+            self._pre_theme_shot = None
+
+    def _fade_from_snapshot(self, snapshot, duration=360):
+        """在窗口上盖一张旧主题截图，淡出后删掉，做出「整窗渐变」的观感。"""
+        self._clear_fade_overlay()
+        overlay = QLabel(self)
+        overlay.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        overlay.setScaledContents(True)
+        overlay.setPixmap(snapshot)
+        overlay.setGeometry(self.rect())
+        overlay.show()
+        overlay.raise_()
+        effect = QGraphicsOpacityEffect(overlay)
+        overlay.setGraphicsEffect(effect)
+        anim = QPropertyAnimation(effect, b"opacity", overlay)
+        anim.setDuration(duration)
+        anim.setStartValue(1.0)
+        anim.setEndValue(0.0)
+        anim.setEasingCurve(QEasingCurve.InOutCubic)
+        anim.finished.connect(lambda: self._end_fade(overlay))
+        anim.start(QAbstractAnimation.DeleteWhenStopped)
+        self._fade_overlay = overlay
+        self._fade_anim = anim
+
+    def _end_fade(self, overlay):
+        if self._fade_overlay is overlay:
+            self._fade_overlay = None
+            self._fade_anim = None
+        overlay.deleteLater()
+
+    def _clear_fade_overlay(self):
+        """连点开关时把上一张还没淡完的截图直接撤掉，免得叠成两层。"""
+        overlay = getattr(self, "_fade_overlay", None)
+        if overlay is not None:
+            try:
+                overlay.hide()
+                overlay.deleteLater()
+            except RuntimeError:
+                pass
+        self._fade_overlay = None
+        self._fade_anim = None
 
     def apply_stylesheet(self):
         if self.is_dark:
@@ -1458,6 +1765,17 @@ class TuneFreeWindow(QMainWindow):
             h.addWidget(v, 1)
             layout.addWidget(row)
 
+        if not success:
+            layout.addSpacing(14)
+            layout.addWidget(self._build_trouble_tips())
+        elif bad:
+            layout.addSpacing(14)
+            note = QLabel(f"有 {bad} 首没转出来 —— 多半是音质不支持（只认 标准 / HQ / SQ），"
+                          f"也可能是文件没下载完整。剩下的都在上面的输出目录里。")
+            note.setObjectName("doneNote")
+            note.setWordWrap(True)
+            layout.addWidget(note)
+
         layout.addSpacing(16)
 
         foot = QHBoxLayout()
@@ -1506,6 +1824,44 @@ class TuneFreeWindow(QMainWindow):
         dialog.adjustSize()
         dialog.exec()
 
+    def _build_trouble_tips(self):
+        """转不出文件时，别只写「失败」——给三条能照着做的排查步骤。"""
+        tips = (
+            ("音质不支持",
+             "臻品音质 / 臻品母带 / 杜比全景声 解不出来，在 QQ 音乐里换成 标准 / HQ / SQ 再试。"),
+            ("没注入进去",
+             "完全退出 QQ 音乐再重新打开；还是不行就右键「以管理员身份运行」本程序"
+             "（QQ 音乐是管理员身份时尤其要这样）。"),
+            ("被杀软拦了",
+             "把整个 TuneFree 文件夹加进杀软信任区；压缩包要先解压再运行，别在压缩包里直接点。"),
+        )
+        box = QFrame()
+        box.setObjectName("troubleBox")
+        v = QVBoxLayout(box)
+        v.setContentsMargins(14, 12, 14, 12)
+        v.setSpacing(10)
+
+        head = QLabel("可能是这几个原因，按顺序试：")
+        head.setObjectName("troubleHead")
+        v.addWidget(head)
+
+        for idx, (title, text) in enumerate(tips, 1):
+            row = QHBoxLayout()
+            row.setSpacing(9)
+            num = QLabel(str(idx))
+            num.setObjectName("troubleNum")
+            num.setFixedSize(18, 18)
+            num.setAlignment(Qt.AlignCenter)
+            row.addWidget(num, 0, Qt.AlignTop)
+
+            body = QLabel(f"<b>{title}</b>　{text}")
+            body.setObjectName("troubleText")
+            body.setWordWrap(True)
+            body.setTextFormat(Qt.RichText)
+            row.addWidget(body, 1)
+            v.addLayout(row)
+        return box
+
     def get_output_format(self):
         if self.format_mp3.isChecked():
             return "mp3"
@@ -1533,7 +1889,7 @@ class TuneFreeWindow(QMainWindow):
         elif output_format == "both":
             cmd.append("--keep-flac")
 
-        if self.overwrite_check.isChecked():
+        if self.overwrite_switch.isChecked():
             cmd.append("--force")
 
         return cmd
@@ -1786,7 +2142,6 @@ class TuneFreeWindow(QMainWindow):
         for base in resource_dirs():
             help_file = base / "使用说明.html"
             if help_file.exists():
-                import webbrowser
                 webbrowser.open(str(help_file))
                 return
         QMessageBox.information(self, "帮助", f"请在浏览器中打开：\n{SITE_PRIMARY}")
@@ -1809,7 +2164,8 @@ def run_gui(argv=None):
     _set_taskbar_identity()
     app = QApplication(argv if argv is not None else sys.argv)
     app.setApplicationName("TuneFree")
-    app.setApplicationDisplayName("TuneFree")
+    # 空 displayName：Windows 标题栏就不会再拼成 “TuneFree-2.1.2 - TuneFree”
+    app.setApplicationDisplayName("")
     icon = app_icon()
     if icon is not None:
         app.setWindowIcon(icon)   # 应用级图标：主窗口、弹窗、任务栏都跟着用
