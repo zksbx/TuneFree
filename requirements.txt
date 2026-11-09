@@ -1,0 +1,10 @@
+# 运行源码需要的最小依赖
+# Python 3.10+（开发环境用的是 3.12）
+
+PySide6>=6.5
+frida>=16.0
+
+# 说明：
+# - 转码用的 ffmpeg.exe 不在这里装，直接放到项目根目录即可
+#   Windows 版下载：https://www.gyan.dev/ffmpeg/builds/ （release essentials）
+# - 打包用 PyInstaller，正常跑程序不需要它
