@@ -15,13 +15,13 @@
 <style>
   :root{
     --bg:#f6f7fb; --bg-soft:#ffffff; --card:#ffffff; --text:#16202e; --text-2:#5a6a7e;
-    --line:#e3e8ef; --brand:#3b6cf6; --brand-2:#8b5cf6; --accent:#16a34a; --warn-bg:#fff7e6;
+    --line:#e3e8ef; --brand:#2f6ee0; --brand-2:#1d4fae; --accent:#16a34a; --warn-bg:#fff7e6;
     --warn-line:#f6c667; --code-bg:#f1f4f9; --shadow:0 10px 30px rgba(20,30,50,.06);
     --radius:18px;
   }
   html[data-theme="dark"]{
     --bg:#11151c; --bg-soft:#161b24; --card:#1a2029; --text:#e8edf5; --text-2:#93a1b5;
-    --line:#2a323f; --brand:#6f95ff; --brand-2:#a78bfa; --accent:#4ade80; --warn-bg:#2a2417;
+    --line:#2a323f; --brand:#5b9bff; --brand-2:#3f7dd8; --accent:#4ade80; --warn-bg:#2a2417;
     --warn-line:#6b5620; --code-bg:#222a35; --shadow:0 10px 30px rgba(0,0,0,.4);
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -140,6 +140,8 @@
   .ver b{font-size:1.5rem}
   .ver .badge{font-size:.72rem;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);padding:2px 8px;border-radius:999px}
   .dl-main .filesize{color:var(--text-2);font-size:.86rem;margin-bottom:18px}
+  .dl-main .changelog{margin:16px 0 0;padding-left:20px;font-size:.86rem;color:var(--text-2);line-height:1.95}
+  .dl-main .changelog b{color:var(--text)}
   .dl-side{display:flex;flex-direction:column;gap:10px}
   .mirror{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;font-size:.9rem}
   .mirror small{color:var(--text-2);display:block;font-size:.78rem}
@@ -305,8 +307,13 @@
     <div class="dl">
       <div class="dl-main">
         <div class="ver"><b id="verNum">v2.1.3</b><span class="badge">Latest</span></div>
-        <div class="filesize" id="sizeText">Windows 10 / 11 64-bit · Portable · Unzip and run</div>
+        <div class="filesize" id="sizeText">Windows 10 / 11 64-bit · Portable · Unzip and run · 61 MB download</div>
         <a class="btn btn-primary" id="dlPrimary" href="https://github.com/zksbx/TuneFree/releases/latest" target="_blank" rel="noopener">⬇ Download from GitHub</a>
+        <ul class="changelog">
+          <li>Redesigned theme switch: sun and moon slide with the knob, plus a whole-window fade on change</li>
+          <li>Failed conversions now list likely causes and what to try</li>
+          <li>Download shrank from 98 MB to <b>61 MB</b></li>
+        </ul>
         <p class="meta" style="text-align:left;margin-top:14px">
           Older builds live on the <a href="https://github.com/zksbx/TuneFree/releases" target="_blank" rel="noopener">Releases page</a>.
           The app tells you when an update is out, so there is no need to check back here.
@@ -451,7 +458,7 @@
 
     <details>
       <summary>I closed it halfway through — do I start over?</summary>
-      <p>No. Running it again skips files that already exist and only fills the gaps. To force a full rebuild, tick "Regenerate existing MP3s".</p>
+      <p>No. Running it again skips files that already exist and only fills the gaps. To force a full rebuild, flip the switch next to "Regenerate existing MP3s".</p>
     </details>
 
     <details>

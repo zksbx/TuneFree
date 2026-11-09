@@ -15,13 +15,13 @@
 <style>
   :root{
     --bg:#f6f7fb; --bg-soft:#ffffff; --card:#ffffff; --text:#16202e; --text-2:#5a6a7e;
-    --line:#e3e8ef; --brand:#3b6cf6; --brand-2:#8b5cf6; --accent:#16a34a; --warn-bg:#fff7e6;
+    --line:#e3e8ef; --brand:#2f6ee0; --brand-2:#1d4fae; --accent:#16a34a; --warn-bg:#fff7e6;
     --warn-line:#f6c667; --code-bg:#f1f4f9; --shadow:0 10px 30px rgba(20,30,50,.06);
     --radius:18px;
   }
   html[data-theme="dark"]{
     --bg:#11151c; --bg-soft:#161b24; --card:#1a2029; --text:#e8edf5; --text-2:#93a1b5;
-    --line:#2a323f; --brand:#6f95ff; --brand-2:#a78bfa; --accent:#4ade80; --warn-bg:#2a2417;
+    --line:#2a323f; --brand:#5b9bff; --brand-2:#3f7dd8; --accent:#4ade80; --warn-bg:#2a2417;
     --warn-line:#6b5620; --code-bg:#222a35; --shadow:0 10px 30px rgba(0,0,0,.4);
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -140,6 +140,8 @@
   .ver b{font-size:1.5rem}
   .ver .badge{font-size:.72rem;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);padding:2px 8px;border-radius:999px}
   .dl-main .filesize{color:var(--text-2);font-size:.86rem;margin-bottom:18px}
+  .dl-main .changelog{margin:16px 0 0;padding-left:20px;font-size:.86rem;color:var(--text-2);line-height:1.95}
+  .dl-main .changelog b{color:var(--text)}
   .dl-side{display:flex;flex-direction:column;gap:10px}
   .mirror{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;font-size:.9rem}
   .mirror small{color:var(--text-2);display:block;font-size:.78rem}
@@ -305,8 +307,13 @@
     <div class="dl">
       <div class="dl-main">
         <div class="ver"><b id="verNum">v2.1.3</b><span class="badge">最新</span></div>
-        <div class="filesize" id="sizeText">Windows 10 / 11 64 位 · 免安装 · 解压即用</div>
+        <div class="filesize" id="sizeText">Windows 10 / 11 64 位 · 免安装 · 解压即用 · 安装包 61 MB</div>
         <a class="btn btn-primary" id="dlPrimary" href="https://github.com/zksbx/TuneFree/releases/latest" target="_blank" rel="noopener">⬇ 从 GitHub 下载</a>
+        <ul class="changelog">
+          <li>主题开关重做：太阳和月亮跟着滑块走，换主题时整窗平滑过渡</li>
+          <li>转换失败会列出可能的原因和对应做法，不再只有一句报错</li>
+          <li>安装包从 98 MB 减到 <b>61 MB</b>，解压后也少了 100 MB</li>
+        </ul>
         <p class="meta" style="text-align:left;margin-top:14px">
           历史版本见 <a href="https://github.com/zksbx/TuneFree/releases" target="_blank" rel="noopener">Releases 页面</a>。
           更新时会自动提示，不需要手动来这查。
@@ -451,7 +458,7 @@
 
     <details>
       <summary>转换到一半关掉了，要重头再来吗？</summary>
-      <p>不用。重新运行会自动跳过已经生成的文件，只补没转完的。想强制重转就勾上「重新生成已存在的 MP3」。</p>
+      <p>不用。重新运行会自动跳过已经生成的文件，只补没转完的。想强制重转就把「重新生成已存在的 MP3」右边的开关打开。</p>
     </details>
 
     <details>
