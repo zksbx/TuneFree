@@ -635,23 +635,47 @@
     }
   })();
 
-  // version: read version.json from the repo root (single source), fall back to the value in the page
+  // version: read version.json from the repo root (single source), fall back to the value in the page.
+  // Trap: jsDelivr caches @main for days and a query string does not bust it, so the hard-coded
+  // version in the page is authoritative — a remote value may only move it forward, never back.
   var VERSION_SOURCES = [
     'https://cdn.jsdelivr.net/gh/zksbx/TuneFree@main/version.json',
     'https://raw.githubusercontent.com/zksbx/TuneFree/main/version.json',
     'version.json'
   ];
+  function verParts(v) {
+    return String(v || '').replace(/^v/i, '').split(/[.\-+]/).map(function (n) {
+      return parseInt(n, 10) || 0;
+    });
+  }
+  function isNewer(a, b) {              // is a newer than b?
+    var x = verParts(a), y = verParts(b), len = Math.max(x.length, y.length);
+    for (var i = 0; i < len; i++) {
+      var p = x[i] || 0, q = y[i] || 0;
+      if (p !== q) return p > q;
+    }
+    return false;
+  }
+  var shownVerNode = document.getElementById('verNum');
+  var shownVer = ((shownVerNode && shownVerNode.textContent) || '').replace(/^v/i, '').trim();
   (function tryVersion(i) {
     if (i >= VERSION_SOURCES.length) return;
-    fetch(VERSION_SOURCES[i], { cache: 'no-store' })
+    var url = VERSION_SOURCES[i];
+    fetch(url, { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (!d || !d.version) { tryVersion(i + 1); return; }
-        document.getElementById('verText').textContent = 'Latest v' + d.version;
-        document.getElementById('verNum').textContent = 'v' + d.version;
+        // remote is older than the page — stale CDN copy, skip it instead of flashing back
+        if (shownVer && isNewer(shownVer, d.version)) { tryVersion(i + 1); return; }
+        var text = document.getElementById('verText');
+        var num = document.getElementById('verNum');
+        if (text) text.textContent = 'Latest v' + d.version;
+        if (num) num.textContent = 'v' + d.version;
         if (d.url) {
-          document.getElementById('dlPrimary').href = d.url;
-          document.getElementById('mainDownload').href = d.url;
+          var dl = document.getElementById('dlPrimary');
+          var main = document.getElementById('mainDownload');
+          if (dl) dl.href = d.url;
+          if (main) main.href = d.url;
         }
       })
       .catch(function () { tryVersion(i + 1); });

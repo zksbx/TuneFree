@@ -635,23 +635,47 @@
     }
   })();
 
-  // 版本号：读仓库根目录的 version.json（单一来源），都失败就用页面里写死的
+  // 版本号：读仓库根目录的 version.json（单一来源）。
+  // 坑：jsDelivr 对 @main 的缓存可能滞后好几天，实测连时间戳都绕不过去，
+  //     所以「页面里写死的版本号才是准的」，远端只有更新时才允许覆盖 —— 宁可不动，不能倒退。
   var VERSION_SOURCES = [
     'https://cdn.jsdelivr.net/gh/zksbx/TuneFree@main/version.json',
     'https://raw.githubusercontent.com/zksbx/TuneFree/main/version.json',
     'version.json'
   ];
+  function verParts(v) {
+    return String(v || '').replace(/^v/i, '').split(/[.\-+]/).map(function (n) {
+      return parseInt(n, 10) || 0;
+    });
+  }
+  function isNewer(a, b) {              // a 是否比 b 新
+    var x = verParts(a), y = verParts(b), len = Math.max(x.length, y.length);
+    for (var i = 0; i < len; i++) {
+      var p = x[i] || 0, q = y[i] || 0;
+      if (p !== q) return p > q;
+    }
+    return false;
+  }
+  var shownVerNode = document.getElementById('verNum');
+  var shownVer = ((shownVerNode && shownVerNode.textContent) || '').replace(/^v/i, '').trim();
   (function tryVersion(i) {
     if (i >= VERSION_SOURCES.length) return;
-    fetch(VERSION_SOURCES[i], { cache: 'no-store' })
+    var url = VERSION_SOURCES[i];
+    fetch(url, { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (!d || !d.version) { tryVersion(i + 1); return; }
-        document.getElementById('verText').textContent = '最新版本 v' + d.version;
-        document.getElementById('verNum').textContent = 'v' + d.version;
+        // 远端比页面上写死的旧 —— 多半是 CDN 还没刷新，跳过它，别闪回去
+        if (shownVer && isNewer(shownVer, d.version)) { tryVersion(i + 1); return; }
+        var text = document.getElementById('verText');
+        var num = document.getElementById('verNum');
+        if (text) text.textContent = '最新版本 v' + d.version;
+        if (num) num.textContent = 'v' + d.version;
         if (d.url) {
-          document.getElementById('dlPrimary').href = d.url;
-          document.getElementById('mainDownload').href = d.url;
+          var dl = document.getElementById('dlPrimary');
+          var main = document.getElementById('mainDownload');
+          if (dl) dl.href = d.url;
+          if (main) main.href = d.url;
         }
       })
       .catch(function () { tryVersion(i + 1); });
