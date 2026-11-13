@@ -7,10 +7,16 @@
 [![Stars](https://img.shields.io/github/stars/zksbx/TuneFree?color=e3b341)](https://github.com/zksbx/TuneFree/stargazers)
 [![License](https://img.shields.io/github/license/zksbx/TuneFree?color=8957e5)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-6e7781)](README.en.md#requirements)
+[![macOS version](https://img.shields.io/badge/macOS%20version-maintained%20by%20Dora--z-8957e5)](https://github.com/Dora-z/TuneFree_Mac)
 
 No membership tricks, no uploading — everything happens on your own computer.
 
 [⬇️ Download latest](https://github.com/zksbx/TuneFree/releases/latest) · [🌐 Website & help](https://zksbx.github.io/TuneFree/tunefree.en.html) · [☁️ Lanzou mirror](https://wwbtj.lanzouc.com/b01d7csi8j) (access code `0211`) · 💬 QQ group: 1067975918 · [中文 README](README.md)
+
+> 🍎 **macOS version**: developed and maintained independently by [Dora-z](https://github.com/Dora-z/TuneFree_Mac).
+> It is not part of this repository and not a port of this code — it takes a different route: no process injection,
+> the decryption algorithm runs natively and the key is fetched using the local QQ Music login.
+> Downloads, issues and feedback live in that repo: **https://github.com/Dora-z/TuneFree_Mac**
 
 ---
 
@@ -118,7 +124,13 @@ If it is already Standard / HQ / SQ, some files need to be played once in QQ Mus
 
 ### Mac / Linux support?
 
-Windows only for now. The core logic is platform-independent, but the QQ Music client it injects into exists only on Windows.
+The **Windows build** is the only official release here — the QQ Music client it injects into exists only on Windows.
+
+The **macOS version** is developed and maintained independently by [Dora-z](https://github.com/Dora-z/TuneFree_Mac). It takes a different approach: no process injection, the decryption algorithm runs locally, and for the newer `musicex` files it reads the local QQ Music login and asks the official API for the per-song key. Source, builds and issue tracker:
+
+👉 **[github.com/Dora-z/TuneFree_Mac](https://github.com/Dora-z/TuneFree_Mac)**
+
+Linux is currently unmaintained.
 
 ## Run from source
 
@@ -183,6 +195,7 @@ One reminder: MIT covers the **code**. It does not loosen the limits on **how yo
 - [music-decryptor](https://github.com/ericjuice/music-decryptor) — where the decryption script started
 - [Unlock Music](https://github.com/unlock-music/unlock-music) — format parsing experience
 - [PyInstaller](https://pyinstaller.org/) — packaging
+- [Dora-z/TuneFree_Mac](https://github.com/Dora-z/TuneFree_Mac) — the macOS version, an independent implementation
 
 ## Support
 

@@ -7,11 +7,16 @@
 [![Stars](https://img.shields.io/github/stars/zksbx/TuneFree?color=e3b341)](https://github.com/zksbx/TuneFree/stargazers)
 [![License](https://img.shields.io/github/license/zksbx/TuneFree?color=8957e5)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-6e7781)](#系统要求)
+[![macOS 版](https://img.shields.io/badge/macOS%20%E7%89%88-%E7%94%B1%20Dora--z%20%E7%8B%AC%E7%AB%8B%E7%BB%B4%E6%8A%A4-8957e5)](https://github.com/Dora-z/TuneFree_Mac)
 [![QQ群](https://img.shields.io/badge/QQ%E7%BE%A4-1067975918-12b7f5)](#支持)
 
 不需要会员，不需要上传，全程在你自己的电脑上完成。
 
 [⬇️ 下载最新版](https://github.com/zksbx/TuneFree/releases/latest) · [🌐 官网与使用帮助](https://zksbx.github.io/TuneFree/) · [☁️ 蓝奏云备用下载](https://wwbtj.lanzouc.com/b01d7csi8j)（提取码 `0211`）· 💬 `QQ` 群：1067975918 · [English](README.en.md)
+
+> 🍎 **macOS 版**：由 [Dora-z](https://github.com/Dora-z/TuneFree_Mac) **独立开发维护**（不是本仓库的代码，也不是本项目的移植）。
+> 它走的是另一条路——不注入进程，在本机复现解密算法、读取本机 QQ音乐的登录态取密钥。
+> 下载、问题与建议都在他的仓库：**https://github.com/Dora-z/TuneFree_Mac**
 
 ---
 
@@ -119,7 +124,13 @@ QQ音乐更新后改了内部函数名，当前版本注入不进去。
 
 ### 支持 Mac / Linux 吗？
 
-暂时只有 Windows。核心逻辑不依赖 Windows，但注入目标 QQ音乐只有 Windows 版。
+**Windows 版**是这里发布的唯一官方版本——注入目标 QQ音乐只有 Windows 版。
+
+**macOS 版**由 [Dora-z](https://github.com/Dora-z/TuneFree_Mac) 独立开发维护，用的是另一套思路：不注入进程，在本机复现解密算法，新版 `musicex` 格式则读取本机 QQ音乐的登录态向官方接口取密钥。源码、发布包、问题反馈都在他的仓库：
+
+👉 **[github.com/Dora-z/TuneFree_Mac](https://github.com/Dora-z/TuneFree_Mac)**
+
+Linux 目前没有人维护。
 
 ## 从源码运行
 
@@ -184,6 +195,7 @@ docs/                官网（静态单页）
 - [music-decryptor](https://github.com/ericjuice/music-decryptor) — 解密脚本的起点
 - [Unlock Music](https://github.com/unlock-music/unlock-music) — 加密格式的解析经验
 - [PyInstaller](https://pyinstaller.org/) — 打包
+- [Dora-z/TuneFree_Mac](https://github.com/Dora-z/TuneFree_Mac) — macOS 版，独立实现，非本仓库代码
 
 ## 支持
 
