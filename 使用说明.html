@@ -164,173 +164,141 @@
 <body>
     <div class="container">
         <h1>🎵 TuneFree</h1>
-        <div class="subtitle">将 QQ音乐加密文件 (.mflac) 一键转换为 MP3 / FLAC — 图形界面版</div>
+        <div class="subtitle">把 QQ音乐下载的加密歌曲（<code>.mflac</code> / <code>.mgg</code>）变成任何播放器都能放的 MP3 · v3.1.2</div>
 
-        <p><strong>TuneFree</strong> 是一款专为 QQ音乐下载的加密音频文件设计的转换工具。它能够自动解密文件，并将其转换为通用的 MP3 格式，同时支持保留无损 FLAC 格式。最新版本提供了<strong>图形界面 (GUI)</strong>，操作更直观，无需记忆命令行参数。你也可以继续使用命令行版本获得最大灵活性。</p>
+        <p><strong>TuneFree</strong> 在 QQ音乐进程里调用它自己的解密函数，把加密文件还原成正常的 FLAC / OGG，再用内置的 FFmpeg 转成 MP3。全程在你自己的电脑上完成，不上传任何文件。</p>
+
+        <pre>.mflac / .mgg  ──解密──▶  .flac / .ogg  ──转码──▶  .mp3</pre>
 
         <h2>✨ 功能特点</h2>
         <ul>
-            <li><span class="badge">图形界面</span> 可视化设置输入目录、输出目录、比特率、输出格式，并实时显示运行日志。</li>
-            <li><span class="badge">三种输出格式</span> 仅 MP3、仅 FLAC、两者均保留，满足不同需求。</li>
-            <li><span class="badge">自动分文件夹</span> 转换结果按格式自动归到 mp3 / flac 子文件夹里，不用自己整理。</li>
-            <li><span class="badge">一键转换</span> 双击运行，自动处理当前文件夹（及子文件夹）中的所有 <code>.mflac</code> 文件。</li>
-            <li><span class="badge">实时进度</span> 处理过程中实时显示解密和转码进度，日志窗口实时刷新。</li>
-            <li><span class="badge">轻量便携</span> 单个 <code>.exe</code> 文件，无需安装，内置 ffmpeg 和必要的解密脚本。</li>
+            <li><span class="badge">批量解密</span> 自动递归子文件夹，一次处理整库。</li>
+            <li><span class="badge">顺手转码</span> 默认直接出 <code>320k</code> MP3，也可以在转换选项里保留解密出的无损文件。</li>
+            <li><span class="badge">看得清</span> 列表里每首歌都标着它现在的格式：没解密是 <code>MFLAC</code> / <code>MGG</code>，解密后是 <code>FLAC</code> / <code>OGG</code>，转好了再挂一个 <code>MP3</code>。</li>
+            <li><span class="badge">筛选</span> 顶部一排格式胶囊（全部 / 未解密 / MFLAC / MGG / FLAC / OGG / MP3），点一下就是筛选，计数实时更新；最右的「筛选」还能按歌手过滤。</li>
+            <li><span class="badge">能听</span> 双击列表里的歌就地试听，底部播放条带封面和两行歌词；点封面或「沉浸」进整页播放页，右边是中英双语歌词。</li>
+            <li><span class="badge">选择模式</span> 点「选择」后可以按文件勾选，批量删除源文件或输出文件。</li>
+            <li><span class="badge">好看</span> 浅色 / 深色两套内置配色，另可自存三套自定义配色；主界面字号、歌词字号都能调。</li>
+            <li><span class="badge">自动更新</span> 启动时检查新版本，同意后原地覆盖升级，配色、字号、转换选项全部保留。</li>
+            <li><span class="badge">后台</span> 关窗口时收进托盘、转换继续在后台跑、转完发系统通知，都在设置 → 行为里开；迷你播放器和全局媒体键也在那一页。</li>
         </ul>
 
         <h2>📋 系统要求</h2>
         <ul>
-            <li><strong>操作系统: </strong>Windows 10 / 11（64位）</li>
-            <li><strong>运行环境: </strong>必须提前启动 <strong>QQ音乐电脑客户端</strong> 并保持运行状态（程序需要注入进程进行解密）。</li>
-            <li><strong>磁盘空间: </strong>至少 100MB 可用空间（用于临时文件），输出文件大小取决于音频时长。</li>
+            <li><strong>操作系统：</strong>Windows 10 / 11（64 位）</li>
+            <li><strong>运行环境：</strong>必须提前打开 <strong>QQ音乐电脑客户端</strong>并登录，保持运行（不需要播放歌曲）。解密依赖它进程里的密钥。</li>
+            <li><strong>音质限制：</strong>只支持「标准 / HQ / SQ」。Hi-Res（臻品音质）、臻品母带、杜比全景声拿到的不是普通音频流，解密会失败。</li>
         </ul>
 
         <div class="note">
-            <p>⚠️ <strong>重要: </strong> 解密过程依赖 QQMusic.exe 进程，如果未启动程序，会提示“请确保QQ音乐客户端正在运行后重试”并退出。所以，请务必先打开 QQ音乐客户端 ，再运行本工具。</p>
-            <p>⚠️ <strong>重要: </strong> 请确保程序所在路径为纯英文，否则程序可能无法正常运行。</p>
+            <p>⚠️ <strong>先开 QQ音乐，再开 TuneFree。</strong>顺序反了会看到「未连接」，点一下连接胶囊可以重连。</p>
         </div>
 
-        <h2>🖥️ 图形界面使用指南</h2>
-        <p>启动 <code>TuneFreeGUI.exe</code> 后，你会看到以下界面区域：</p>
-        <ul>
-            <li><strong>参数设置</strong>：选择输入目录、输出模式、MP3比特率、输出格式（仅MP3/仅FLAC/两者）。</li>
-            <li><strong>输出目录</strong>：转换结果存放位置，程序会自动创建 mp3/flac 子文件夹。</li>
-            <li><strong>执行预览</strong>：实时显示即将执行的命令行，便于核对。</li>
-            <li><strong>运行日志</strong>：显示转换过程中的详细信息（解密进度、转码进度、错误信息）。</li>
-            <li><strong>按钮</strong>：<code>开始执行</code>启动转换，<code>清空日志</code>清除日志窗口，<code>帮助</code>打开本说明文档。</li>
-        </ul>
-        <p><strong>操作步骤：</strong></p>
+        <h2>🚀 三步就能用</h2>
         <ol>
-            <li>点击“浏览”选择包含 <code>.mflac</code> 文件的文件夹（留空则使用程序所在目录）。</li>
-            <li>确认输出目录（默认在程序目录下的 output 文件夹）。</li>
-            <li>设置 MP3 比特率（默认 192k）。</li>
-            <li>选择输出格式（仅 MP3 / 仅 FLAC / 两者均保留）。</li>
-            <li>点击“开始执行”，耐心等待转换完成。</li>
-            <li>转换完成后，在输出目录中找到生成的文件。</li>
-        </ol>
-        <p>若文件数量较多，转换时间可能较长，请耐心等待，转换过程中不要关闭程序窗口。</p>
-
-        <h2>🔄 处理流程</h2>
-        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin: 30px 0;">
-            <div style="flex: 1 1 160px; text-align: center;">
-                <div style="background: #2f6ee0; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-weight: bold; font-size: 1.5rem;">1</div>
-                <h3 style="margin: 0 0 8px;">读取文件</h3>
-                <p style="font-size: 0.95rem; color: #475569;">自动扫描输入目录中的所有 .mflac 文件</p>
-            </div>
-            <div style="flex: 0 0 20px; align-self: center; font-size: 1.5rem; color: #94a3b8;">→</div>
-            <div style="flex: 1 1 160px; text-align: center;">
-                <div style="background: #2f6ee0; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-weight: bold; font-size: 1.5rem;">2</div>
-                <h3 style="margin: 0 0 8px;">解密为 FLAC</h3>
-                <p style="font-size: 0.95rem; color: #475569;">通过 Frida 注入 QQMusic 进程，解密为 FLAC</p>
-            </div>
-            <div style="flex: 0 0 20px; align-self: center; font-size: 1.5rem; color: #94a3b8;">→</div>
-            <div style="flex: 1 1 160px; text-align: center;">
-                <div style="background: #2f6ee0; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-weight: bold; font-size: 1.5rem;">3</div>
-                <h3 style="margin: 0 0 8px;">转码 MP3</h3>
-                <p style="font-size: 0.95rem; color: #475569;">调用 ffmpeg 将 FLAC 转换为 MP3</p>
-            </div>
-            <div style="flex: 0 0 20px; align-self: center; font-size: 1.5rem; color: #94a3b8;">→</div>
-            <div style="flex: 1 1 160px; text-align: center;">
-                <div style="background: #2f6ee0; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-weight: bold; font-size: 1.5rem;">4</div>
-                <h3 style="margin: 0 0 8px;">输出文件</h3>
-                <p style="font-size: 0.95rem; color: #475569;">根据选择，输出 MP3 和/或 FLAC 到指定目录</p>
-            </div>
-        </div>
-        <p style="text-align:center; color:#64748b; margin-top:8px;">程序自动处理，实时显示进度</p>
-
-        <h2>🚀 快速上手（图形界面）</h2>
-        <ol>
-            <li><strong>启动 QQ音乐：</strong>打开 QQ音乐客户端，登录你的账号，保持它在后台运行（不需要播放歌曲）。</li>
-            <li><strong>双击运行 GUI：</strong>双击 <code>TuneFreeGUI.exe</code>，按上述操作设置参数并点击“开始执行”。</li>
-            <li><strong>查看结果：</strong>转换完成后，在输出目录中找到生成的音频文件。</li>
+            <li><strong>打开 QQ音乐并登录</strong>，放在后台就行。</li>
+            <li><strong>双击 <code>TuneFree.exe</code></strong>，点顶栏左侧的文件夹按钮选存放 <code>.mflac</code> / <code>.mgg</code> 的目录（也可以直接把文件夹拖进窗口）。</li>
+            <li><strong>点「开始转换」</strong>，右下角会浮出进度条；跑完去 <code>output\mp3</code> 拿文件。</li>
         </ol>
 
-        <h2>🛠️ 高级用法（命令行）</h2>
-        <p>如果你需要更灵活的控制（如脚本批量处理），也可以直接使用命令行版本 <code>TuneFree.exe</code>。图形界面的所有功能均可通过命令行实现，参数说明如下：</p>
+        <h2>🖥️ 界面说明</h2>
         <table>
-            <thead>
-                <tr><th>参数</th><th>说明</th><th>示例</th> </tr>
-            </thead>
+            <thead><tr><th>区域</th><th>作用</th></tr></thead>
             <tbody>
-                <tr><td><code>-i</code> 或 <code>--input</code></td><td>指定输入目录（默认为当前目录）</td><td><code>TuneFree -i "D:\音乐\专辑"</code></td></tr>
-                <tr><td><code>-o</code> 或 <code>--output</code></td><td>指定输出根目录（默认为当前目录下的 <code>output</code>），其下自动创建 <code>mp3</code> 子文件夹；若同时使用 <code>--keep-flac</code>，还会创建 <code>flac</code> 子文件夹</td><td><code>TuneFree -o "E:\转换结果"</code></td></tr>
-                <tr><td><code>--flac-dir</code></td><td>独立指定 FLAC 输出目录（仅在 <code>--keep-flac</code> 时有效）</td><td><code>TuneFree --keep-flac --flac-dir "D:\FLAC库"</code></td></tr>
-                <tr><td><code>--mp3-dir</code></td><td>独立指定 MP3 输出目录（覆盖默认）</td><td><code>TuneFree --mp3-dir "D:\MP3库"</code></td></tr>
-                <tr><td><code>-b</code> 或 <code>--bitrate</code></td><td>设置 MP3 比特率，可选 <code>128k</code>、<code>192k</code>、<code>320k</code> 等（默认 <code>192k</code>）</td><td><code>TuneFree -b 320k</code></td></tr>
-                <tr><td><code>--keep-flac</code></td><td>保留解密后的 FLAC 文件（默认不保留）</td><td><code>TuneFree --keep-flac</code></td></tr>
-                <tr><td><code>--no-mp3</code></td><td>不生成 MP3，仅保留 FLAC（忽略 <code>--keep-flac</code>）</td><td><code>TuneFree --no-mp3</code></td></tr>
+                <tr><td>顶栏</td><td>TuneFree 名称、文件夹按钮、搜索框、连接状态、设置、Star、支持作者、转换选项、开始转换</td></tr>
+                <tr><td>曲库卡片</td><td>标题、格式胶囊（全部 / 未解密 / MFLAC / MGG / FLAC / OGG / MP3）、工具行（排序、选择）、歌曲列表</td></tr>
+                <tr><td>列表</td><td>序号 / 播放键、封面、歌名与歌手、格式胶囊、大小、时长、行尾「⋯」；双击试听，工具行右侧可切排序，右键或「⋯」删行</td></tr>
+                <tr><td>右下角浮窗</td><td>转换进度，透明穿透，不会挡住你的鼠标操作</td></tr>
+                <tr><td>播放条</td><td>封面（点开沉浸页）、曲名、上一首 / 播放 / 下一首、时间与进度、格式切换、音量、迷你、沉浸</td></tr>
             </tbody>
         </table>
-        <p><strong>示例组合：</strong></p>
-        <pre>TuneFree -i "D:\下载" -o "D:\我的音乐" -b 320k --keep-flac</pre>
-        <p>这条命令会处理 <code>D:\下载</code> 中的所有 <code>.mflac</code> 文件，输出 MP3 到 <code>D:\我的音乐\mp3</code>，并保留 FLAC 到 <code>D:\我的音乐\flac</code>，MP3 比特率为 320kbps。</p>
+
+        <h2>⚙️ 转换选项</h2>
+        <p>点顶栏的「转换选项」，这些设置对下一次点「开始转换」生效：</p>
+        <ul>
+            <li><strong>MP3 品质</strong>：320k（默认）/ 256k / 192k / 128k。</li>
+            <li><strong>保留解密后的 FLAC</strong>：勾上就同时留下 <code>output\flac</code>，播放时还能在播放条上切换音源。</li>
+            <li><strong>重新生成已存在的 MP3</strong>：默认跳过已转好的歌，勾上就全部重来一遍。</li>
+        </ul>
+
+        <h2>📁 输出结构</h2>
+        <pre>你选中的歌曲文件夹
+└─ output
+   ├─ mp3    转换好的 MP3（默认只出这里）
+   └─ flac   解密出的 FLAC / OGG（勾选「保留」才有）</pre>
+
+        <h2>🔤 文件名格式</h2>
+        <p>程序按「歌名 - 歌手」拆名字。如果你下载的文件是「歌手 - 歌名」或者只有歌名，去设置里把「文件名格式」改成对应那一档，列表里的歌名和歌手会立刻重算。</p>
+        <p>文件名结尾的 <code>_H</code>、<code>_SQ</code>、<code>_DOLBY</code> 这类音质后缀会自动去掉；像 <code>G_E_M邓紫棋</code> 这种带下划线的歌手名不会被误伤。</p>
 
         <h2>⚠️ 注意事项</h2>
         <div class="card">
             <h3>🔒 杀毒软件误报</h3>
-            <p>由于程序使用了 <strong>Frida</strong> 动态注入技术（用于与 QQ音乐进程通信），部分杀毒软件可能会误报为风险程序。这是正常现象，请将 <code>TuneFree.exe</code> 添加至杀毒软件的信任区，或暂时关闭杀毒软件后再运行。</p>
+            <p>程序用 <strong>Frida</strong> 往 QQ音乐进程里注入代码，这个行为和恶意软件一模一样，所以杀软基本都会报。把 TuneFree 目录加进信任区即可；源码全部公开，可以自己看每一行在做什么。</p>
         </div>
         <div class="card">
             <h3>🛡️ 首次运行被蓝色窗口拦住</h3>
-            <p>双击时如果弹出「Windows 已保护你的电脑」，那是 SmartScreen 的「未知发布者」提示，不是报毒，因为程序没有购买代码签名证书。两种处理方式：</p>
-            <p><strong>一、还没解压：</strong>右键 zip → 属性 → 勾选最下面的「解除锁定」→ 确定，然后再解压，之后都不会再弹。</p>
-            <p><strong>二、已经解压了：</strong>蓝窗口里点「更多信息」，再点「仍要运行」，同一份文件点一次即可。</p>
+            <p>那是 SmartScreen 的「未知发布者」提示，不是报毒——没买代码签名证书的 exe 第一次运行都会这样。</p>
+            <p><strong>还没解压：</strong>右键 zip → 属性 → 勾选最下面的「解除锁定」→ 确定，再解压，以后都不弹。</p>
+            <p><strong>已经解压了：</strong>蓝窗口里点「更多信息」→「仍要运行」，同一份文件点一次就够。</p>
         </div>
         <div class="card">
             <h3>🎵 QQ音乐必须运行</h3>
-            <p>解密过程依赖 QQMusic.exe 进程，如果未启动程序，会提示“请确保QQ音乐客户端正在运行后重试”并退出。请务必先打开 QQ音乐客户端。</p>
-        </div>
-        <div class="card">
-            <h3>📁 文件命名</h3>
-            <p>程序会自动保留原文件名（仅扩展名变为 <code>.flac</code> 和 <code>.mp3</code>）。如果文件名包含特殊字符（如 <code>&</code>、<code>[</code>），也能正常处理。</p>
+            <p>没有 QQMusic.exe 就没有密钥，程序会显示「未连接」。打开它、登录、再回 TuneFree 点连接胶囊。</p>
         </div>
         <div class="card">
             <h3>💾 磁盘空间</h3>
-            <p>默认只输出 MP3，所需空间较小。如果选择“两者均保留”，FLAC 文件约为原 MFLAC 大小，MP3 约为其 1/5 到 1/3，请预留足够空间。</p>
+            <p>默认只出 MP3，约为原文件的三分之一到五分之一。勾了「保留解密后的 FLAC」就要再留一份和原文件差不多大的空间。</p>
         </div>
         <div class="card">
             <h3>📄 版权声明</h3>
-            <p>本工具仅供解密<strong>个人合法购买</strong>的 QQ音乐文件，请勿用于传播或商业用途。使用本工具产生的法律责任由用户自行承担。</p>
+            <p>本工具仅供解密<strong>个人合法下载</strong>的音乐文件，方便在自己拥有的设备上播放。请勿传播、二次分发或商用，责任由使用者自行承担。</p>
         </div>
 
         <h2>❓ 常见问题</h2>
         <ul>
-            <li><strong>Q: 运行后提示“请确保QQ音乐客户端正在运行后重试”</strong><br> A: 请确保 QQ音乐客户端已启动并保持运行。如果已启动仍报错，尝试以管理员身份运行 <code>TuneFreeGUI.exe</code>。</li>
-            <li><strong>Q: 解密失败，提示 <code>invalid size</code> 或类似错误</strong><br> A: 可能是 QQ音乐更新了加密算法，导致内置的 <code>hook_qq_music.js</code> 不兼容。可以联系我们处理。</li>
-            <li><strong>Q: 转换后的 MP3 音质不佳</strong><br> A: 默认比特率为 <code>192k</code>，可在 GUI 中或命令行通过 <code>-b 320k</code> 参数提高音质。更高的比特率会生成更大的文件。</li>
-            <li><strong>Q: 可以处理子文件夹中的文件吗？</strong><br> A: 可以。程序会递归遍历输入目录下的所有子文件夹，找到所有 <code>.mflac</code> 文件进行处理。</li>
-            <li><strong>Q: 程序运行时弹出命令行窗口，可以隐藏吗？</strong><br> A: GUI 版默认隐藏命令行窗口，仅显示图形界面。命令行版会显示窗口以显示进度。</li>
-            <li><strong>Q: 如何保留 FLAC 文件？</strong><br> A: 在 GUI 中选择输出格式“两者均保留”，或在命令行中使用 <code>--keep-flac</code> 参数。</li>
-            <li><strong>Q: 可以只输出 FLAC 而不输出 MP3 吗？</strong><br> A: 可以，在 GUI 中选择输出格式“仅 FLAC”，或在命令行中使用 <code>--no-mp3</code> 参数。</li>
+            <li><strong>Q：顶栏一直显示「未连接」。</strong><br>A：先确认 QQ音乐开着并已登录，再点那个胶囊重连。QQ音乐刚更新过也可能要等 TuneFree 适配。</li>
+            <li><strong>Q：双击一首歌提示「这个使不得 请转换后再试」。</strong><br>A：那首歌还没解密/没转出 MP3，先点「开始转换」。提示是浮窗，几秒后自己消失。</li>
+            <li><strong>Q：解密报 <code>invalid size</code> 或提示版本不匹配。</strong><br>A：QQ音乐更新后改了内部函数名。把 QQ音乐降级到可用版本，或等 TuneFree 适配新版。</li>
+            <li><strong>Q：解密成功但转 MP3 全失败。</strong><br>A：多半是安全软件拦住了 <code>ffmpeg.exe</code> 写文件。完整原因会写在完成弹窗里，把 TuneFree 目录加进信任区再试。</li>
+            <li><strong>Q：有少数歌死活转不出来。</strong><br>A：先看音质是不是 Hi-Res / 臻品母带 / 杜比全景声——这几档不支持。是标准 / HQ / SQ 的话，先在 QQ音乐里播放一遍再试。</li>
+            <li><strong>Q：胶囊上 MGG 是 0，但文件夹里明明有。</strong><br>A：MGG / MFLAC 这两个胶囊统计的是磁盘上的文件（不管解没解密）；如果一个都没有，说明它们已经被整理到别处了。</li>
+            <li><strong>Q：界面字太小 / 太大。</strong><br>A：设置 → 外观 → 字号，主界面和歌词可以分开调。</li>
         </ul>
+
+        <h2>🛠️ 命令行</h2>
+        <p>不开界面也能跑，适合写进脚本批量处理：</p>
+        <table>
+            <thead><tr><th>参数</th><th>说明</th><th>示例</th></tr></thead>
+            <tbody>
+                <tr><td><code>-i</code> / <code>--input</code></td><td>输入目录，默认当前目录</td><td><code>TuneFree.exe --cli -i "D:\下载"</code></td></tr>
+                <tr><td><code>-o</code> / <code>--output</code></td><td>输出根目录，默认 <code>./output</code></td><td><code>TuneFree.exe --cli -o "E:\音乐"</code></td></tr>
+                <tr><td><code>--mp3-dir</code> / <code>--flac-dir</code></td><td>分别指定 MP3 / FLAC 输出位置</td><td><code>--flac-dir "D:\无损"</code></td></tr>
+                <tr><td><code>-b</code> / <code>--bitrate</code></td><td>MP3 比特率，默认 <code>192k</code></td><td><code>-b 320k</code></td></tr>
+                <tr><td><code>--keep-flac</code></td><td>保留解密出的 FLAC / OGG</td><td><code>--keep-flac</code></td></tr>
+                <tr><td><code>--no-mp3</code></td><td>只出无损，不转 MP3</td><td><code>--no-mp3</code></td></tr>
+                <tr><td><code>--force</code></td><td>已存在的 MP3 也重新生成</td><td><code>--force</code></td></tr>
+            </tbody>
+        </table>
 
         <h2>🙏 鸣谢</h2>
-        <p>TuneFree 的诞生离不开以下优秀的开源项目和贡献者，在此表示诚挚的感谢: </p>
         <ul>
-            <li><a href="https://frida.re/" target="_blank" rel="noopener">Frida</a>: 强大的动态代码注入框架，使解密过程能够与 QQMusic 进程无缝交互。</li>
-            <li><a href="https://ffmpeg.org/" target="_blank" rel="noopener">FFmpeg</a>: 业界领先的多媒体处理工具，负责将 FLAC 高效转换为 MP3。</li>
-            <li><a href="https://github.com/ericjuice/music-decryptor" target="_blank" rel="noopener">music-decryptor</a>: 由 <a href="https://github.com/ericjuice" target="_blank" rel="noopener">ericjuice</a> 开发的 QQ音乐解密工具，提供了核心解密脚本 <code>hook_qq_music.js</code>。</li>
-            <li><a href="https://pyinstaller.org/" target="_blank" rel="noopener">PyInstaller</a>: 将 Python 脚本打包成独立可执行文件的利器，让 TuneFree 能够轻松分发。</li>
-            <li><a href="https://python.org/" target="_blank" rel="noopener">Python</a>: 程序的编写语言，让这一切有可能。</li>
-            <li><strong>解锁音乐社区</strong>(Unlock Music): 众多逆向爱好者的共同努力，使得 QQ音乐等平台的加密格式得以解析。</li>
-            <li><a href="https://www.deepseek.com/" target="_blank" rel="noopener">DeepSeek</a>: 为实际资源整合中遇到的技术问题提供了解决思路以及方法、本说明文档框架的搭建以及内容的编写。</li>
-            <li><a href="https://www.doubao.com/" target="_blank" rel="noopener">豆包</a>: 提供了程序图标、参与了起名工作。</li>
-            <li><strong>花红大裤衩</strong>: 参与了测试工作。</li>
-            <li><strong>陌离</strong>: 提供了初版GUI界面。</li>
-            <li><strong>Sparkle</strong>: 少数情况下，下载的歌曲需要先播放一遍才能正常转码。</li>
-            <li><a href="https://github.com/" target="_blank" rel="noopener">GitHub</a>: 发行平台。</li>
+            <li><a href="https://frida.re/" target="_blank" rel="noopener">Frida</a>：动态注入框架，解密靠它跟 QQMusic 进程对话。</li>
+            <li><a href="https://ffmpeg.org/" target="_blank" rel="noopener">FFmpeg</a>：转码。</li>
+            <li><a href="https://github.com/ericjuice/music-decryptor" target="_blank" rel="noopener">music-decryptor</a>：<code>hook_qq_music.js</code> 的起点。</li>
+            <li><a href="https://pyinstaller.org/" target="_blank" rel="noopener">PyInstaller</a>：打包。</li>
+            <li><strong>Unlock Music 社区</strong>：加密格式的解析经验。</li>
+            <li><strong>花红大裤衩</strong>：测试。　<strong>陌离</strong>：初版界面。　<strong>Sparkle</strong>：少数歌要先播放一遍才能转的经验。</li>
         </ul>
-        <p style="margin-top: 12px;">感谢所有开源贡献者的智慧和付出，让技术真正服务于自由与分享。</p>
 
         <h2>📞 支持与反馈</h2>
-        <p>如果你在使用过程中遇到任何问题，或有改进建议，请联系发行者: </p>
-        <p style="background: #f1f5f9; padding: 12px; border-radius: 12px;">📧 邮箱: 2505923037@qq.com
-        <br>🐧 QQ群: 1067975918
-        <br>🐙 GitHub仓库: <a href="https://github.com/zksbx/TuneFree" target="_blank" rel="noopener">https://github.com/zksbx/TuneFree</a>
+        <p style="background: #f1f5f9; padding: 12px; border-radius: 12px;">🐧 QQ 群：1067975918
+        <br>🐙 GitHub：<a href="https://github.com/zksbx/TuneFree" target="_blank" rel="noopener">github.com/zksbx/TuneFree</a>
+        <br>🌐 官网与帮助：<a href="https://zksbx.github.io/TuneFree/tunefree.html#help" target="_blank" rel="noopener">zksbx.github.io/TuneFree</a>
         </p>
 
-        <h2>☕ 赞赏支持</h2>
-        <p>TuneFree 是完全免费的，没有广告，也不会限制功能来收费。如果 TuneFree 确实帮到了您，您可以选择请作者喝杯奶茶；不想花钱也完全没关系，把工具告诉你身边需要的人，同样是很大的帮助。</p>
+        <h2 id="support">☕ 赞赏支持</h2>
+        <p>TuneFree 完全免费，没有广告，也不会限制功能来收费。如果它确实帮到了你，可以请作者喝杯奶茶；不想花钱也没关系，把它告诉需要的人同样是很大的帮助。</p>
         <div style="text-align:center; background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:16px; margin:16px 0;">
             <img src="赞赏码.png" alt="微信赞赏码与支付宝收款码" style="max-width:100%; width:460px; height:auto; border-radius:10px;">
             <p style="margin-top:10px; color:#64748b; font-size:.9em;">左：微信赞赏码　右：支付宝收款码</p>
@@ -338,9 +306,8 @@
 
         <footer>
             <p>感谢使用 <span style="font-weight:600; background:linear-gradient(135deg,#4c8bf5,#2f6ee0); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">TuneFree</span>，祝你听歌愉快！ 🎧</p>
-            <p style="margin-top: 8px;">© 2026 曾 · 使用说明 v2.1 (图形界面版)</p>
+            <p style="margin-top: 8px;">© 2026 曾 · 使用说明 v3.1.2</p>
         </footer>
     </div>
 </body>
 </html>
-

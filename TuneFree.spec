@@ -45,17 +45,21 @@ pyz = PYZ(a.pure)
 # - 整个模块既没被 import、也没被任何 dll 的导入表引用（用 PE 导入表扫过一遍）
 # - 插件里只保留 qwindows 平台、qico 图标、现代 Windows 样式
 # 如果以后换了 Qt 版本导致启动报缺 dll，把对应名字从这里去掉即可。
+#
+# 2026-11-15 修正：v3 加了播放器（QMediaPlayer），Qt6Multimedia 依赖 Qt6Network，
+# 之前把 qt6network 裁掉会报 "DLL load failed while importing QtMultimedia"。
+# 网络相关的 dll 与 TLS 后端都必须留着。
 _DROP = (
     'opengl32sw',            # 软件 OpenGL 兜底，20MB 级的包袱
     'qt6quick', 'qt6qml', 'qt6pdf', 'qt6designer',
-    'qt6opengl', 'qt6network', 'qtnetwork.pyd', 'qt6svg', 'qt6virtualkeyboard',
+    'qt6opengl', 'qt6svg', 'qt6virtualkeyboard',
     'qdirect2d',             # Direct2D 平台插件，只有 QT_QPA_PLATFORM=direct2d 才用
-    'qtuiotouchplugin', 'qtvirtualkeyboardplugin', 'qnetworklistmanager',
-    'qopensslbackend', 'qschannelbackend', 'qcertonlybackend', 'qsvgicon',
-    'imageformats\\qjpeg', 'imageformats\\qwebp', 'imageformats\\qtiff',
+    'qtuiotouchplugin', 'qtvirtualkeyboardplugin', 'qsvgicon',
+    # 封面是服务端返回的 JPEG/WebP，qjpeg / qwebp 必须留着，
+    # 否则打包版列表里的小图全部空白（源码版正常，最容易漏）
+    'imageformats\\qtiff',
     'imageformats\\qtga', 'imageformats\\qwbmp', 'imageformats\\qicns',
     'imageformats\\qpdf', 'imageformats\\qgif', 'imageformats\\qsvg',
-    'libcrypto-3-x64', 'libssl-3-x64',   # OpenSSL 的重复副本，_ssl.pyd 只用不带后缀的
 )
 a.binaries = [b for b in a.binaries if not any(k in b[0].lower() for k in _DROP)]
 

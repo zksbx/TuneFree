@@ -1,34 +1,59 @@
-import frida
+# -*- coding: utf-8 -*-
+"""TuneFree 后端：把 QQ 音乐的 .mflac / .mgg 解密成 FLAC/OGG，再转成 MP3。
+
+两种用法：
+1. 命令行：`app.py --cli -i 目录 -o 输出目录`
+2. 被界面直接调用：`Runner(..., on_event=回调).run()`，进度通过 on_event 回传
+
+on_event(kind, payload) 的 kind：
+    "conn"     连接状态，payload = {"ok": bool, "message": str}
+    "items"    扫描结果，payload = [Track]
+    "item"     单曲状态，payload = {"track": Track, "state": str, "message": str}
+    "progress" 阶段进度，payload = {"phase": str, "done": int, "total": int}
+    "log"      一行日志，payload = {"level": "info"/"error", "message": str}
+    "summary"  全部结束，payload = {"ok": int, "fail": int, "skip": int, "elapsed": float}
+"""
+
+from __future__ import annotations
+
+import argparse
+import itertools
+import logging
 import os
 import re
-import sys
-import argparse
-import logging
-import subprocess
-import tempfile
 import shutil
+import sys
+import tempfile
 import time
 import traceback
 from pathlib import Path
 
+import converter
+import scanner
+import session as qsession
+# 这几个原来住在本文件，现在挪到 converter.py，这里原样导出，老调用方不用改
+from converter import force_remove
+
 try:  # 版本号统一放在 version.py，打包时如果没带上就退回内置值
     from version import VERSION
 except Exception:
-    VERSION = "2.1.3"
+    VERSION = "3.1.2"
 
 # 打包成窗口程序后，父进程自己没有控制台；这时每启动一次 ffmpeg（控制台程序），
 # Windows 都会给它新建一个控制台窗口 —— 就是用户看到的一闪而过的黑框。
-# CREATE_NO_WINDOW 让它安静地跑，输出照样能通过管道拿到。
-_NO_WINDOW = 0x08000000 if os.name == 'nt' else 0
+_NO_WINDOW = 0x08000000 if os.name == "nt" else 0
 
-# 注入阶段失败的原因：main() 收尾时用它决定要不要报失败，而不是假装「全部处理完成」
+# 注入阶段失败的原因：收尾时用它决定要不要报失败，而不是假装「全部处理完成」
 _last_inject_error = ""
 
-# -------------------- 强制 UTF-8 输出（解决编码错误） --------------------
+DEFAULT_BITRATE = "320k"
+
+
+# -------------------- 强制 UTF-8 输出 --------------------
 def _reopen_fd(fd, name):
     """把第 fd 号文件描述符包成 UTF-8 文本流；fd 不可用返回 None。"""
     try:
-        return open(fd, mode='w', encoding='utf-8', errors='replace', closefd=False)
+        return open(fd, mode="w", encoding="utf-8", errors="replace", closefd=False)
     except (OSError, ValueError):
         return None
 
@@ -40,443 +65,418 @@ def _force_utf8_stdio():
     界面上的进度条就永远不动。所以这里先试着按 fd 重新打开，拿不到再退回另一个流。
     """
     if sys.stdout is None:
-        sys.stdout = _reopen_fd(1, "stdout") or sys.stderr or open(os.devnull, 'w')
+        sys.stdout = _reopen_fd(1, "stdout") or sys.stderr or open(os.devnull, "w")
     if sys.stderr is None:
-        sys.stderr = _reopen_fd(2, "stderr") or sys.stdout or open(os.devnull, 'w')
+        sys.stderr = _reopen_fd(2, "stderr") or sys.stdout or open(os.devnull, "w")
 
     for name in ("stdout", "stderr"):
         stream = getattr(sys, name, None)
         if stream is None:
             continue
         try:
-            setattr(sys, name, open(stream.fileno(), mode='w', encoding='utf-8', errors='replace'))
+            setattr(sys, name, open(stream.fileno(), mode="w", encoding="utf-8", errors="replace"))
         except (OSError, ValueError, AttributeError):
             pass
 
 
-if sys.platform == 'win32':
+if sys.platform == "win32":
     _force_utf8_stdio()
 
-# -------------------- 资源路径辅助函数 --------------------
+
+# -------------------- 小工具 --------------------
 def resource_path(relative_path):
-    if hasattr(sys, '_MEIPASS'):
+    """打包后在 _MEIPASS，源码运行时在本文件目录。"""
+    if hasattr(sys, "_MEIPASS"):
         return os.path.join(sys._MEIPASS, relative_path)
-    # 源码运行时按脚本所在目录找资源，别依赖调用方的工作目录
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
 
-# -------------------- 文件删除重试（避免权限错误） --------------------
-def force_remove(file_path, max_retries=5, delay=0.2):
-    for _ in range(max_retries):
-        try:
-            if os.path.exists(file_path):
-                os.unlink(file_path)
-            return True
-        except PermissionError:
-            time.sleep(delay)
-            continue
-    return False
+
+def sanitize_bitrate(value, default=DEFAULT_BITRATE):
+    """比特率只接受 128k / 320k 这种写法，别把奇怪的值传给 ffmpeg。"""
+    bitrate = (value or default).strip().lower()
+    if not re.fullmatch(r"\d{2,3}k", bitrate):
+        return default
+    kbps = int(bitrate[:-1])
+    if kbps > 320:
+        return "320k"
+    if kbps < 32:
+        return default
+    return bitrate
 
 
-def _mkstemp_path(suffix):
-    """建一个临时文件并立即关闭句柄。NamedTemporaryFile(...).name 的句柄会被占着。"""
-    fd, path = tempfile.mkstemp(suffix=suffix)
-    os.close(fd)
-    return path
+def default_output_dirs(input_dir, output=None):
+    """算出 (输出根目录, FLAC 目录, MP3 目录)。"""
+    root = os.path.abspath(output) if output else os.path.join(input_dir, "output")
+    return root, os.path.join(root, "flac"), os.path.join(root, "mp3")
+
+
+def ffmpeg_path():
+    return resource_path("ffmpeg.exe")
 
 
 def emit_progress(phase, done, total):
-    """
-    进度协议：GUI 认 `@@PROGRESS 解密 3/10` 这一行并更新进度条（不写进日志）。
-    在真正的控制台里（isatty）额外打一行可覆盖的进度，方便命令行用户。
-    """
-    print(f"@@PROGRESS {phase} {done}/{total}", flush=True)
-    try:
-        is_tty = sys.stdout is not None and sys.stdout.isatty()
-    except (ValueError, AttributeError):
-        is_tty = False
-    if is_tty:
-        print(f"{phase}: {done}/{total}", end='\r', flush=True)
+    """进度协议：界面认 `@@PROGRESS 解密 3/10` 这一行（不写进日志）。"""
+    print("@@PROGRESS %s %d/%d" % (phase, done, total), flush=True)
 
 
-# -------------------- 解密函数 --------------------
-def run_decrypt(input_dir, flac_output_dir):
-    global _last_inject_error
-    if not os.path.exists(input_dir):
-        logging.error(f"输入目录不存在: {input_dir}")
-        return 0, 0
+# -------------------- 任务执行器 --------------------
+class Runner:
+    """一次完整的「解密 + 转码」任务。"""
 
-    input_dir = os.path.abspath(input_dir)
-    flac_output_dir = os.path.abspath(flac_output_dir)
+    def __init__(self, input_dir, flac_dir=None, mp3_dir=None, bitrate=DEFAULT_BITRATE,
+                 keep_flac=False, no_mp3=False, force=False, workers=None,
+                 on_event=None, hook_path=None, session=None):
+        self.input_dir = os.path.abspath(input_dir)
+        self.flac_dir = os.path.abspath(flac_dir) if flac_dir else os.path.join(self.input_dir, "output", "flac")
+        self.mp3_dir = os.path.abspath(mp3_dir) if mp3_dir else os.path.join(self.input_dir, "output", "mp3")
+        self.bitrate = sanitize_bitrate(bitrate)
+        self.keep_flac = bool(keep_flac)
+        self.no_mp3 = bool(no_mp3)
+        self.force = bool(force)
+        self.workers = workers
+        self.on_event = on_event
+        self.hook_path = hook_path or qsession.default_hook_path()
+        self._tmp_seq = itertools.count()
+        self._preset_session = session
 
-    try:
-        session = frida.attach("QQMusic.exe")
-    except frida.ProcessNotFoundError:
-        logging.error("请确保QQ音乐客户端正在运行后重试")
-        return 0, 0
-    except frida.TransportError as e:
-        # 注入通道就没建起来：frida 的 helper 被杀软拦掉、权限不对、%TEMP% 不可写都会走这里
-        logging.error(f"无法连接 QQ音乐进程（注入通道建立失败）: {e}")
-        logging.error("常见原因：杀毒软件拦下了 frida 的注入组件；QQ音乐以管理员身份运行而本程序不是；"
-                      "临时目录 %TEMP% 不可写")
-        logging.error("可以按顺序试：1) 右键「以管理员身份运行」本程序 2) 把 TuneFree 整个文件夹加入杀软信任区 "
-                      "3) 完全退出 QQ音乐后重新打开再试")
-        _last_inject_error = "无法连接 QQ音乐进程（注入通道建立失败）"
-        return 0, 0
+        self.session = None
+        self.tracks = []
+        self.cancelled = False
+        self.summary = {"ok": 0, "fail": 0, "skip": 0, "elapsed": 0.0}
 
-    js_path = resource_path("hook_qq_music.js")
-    try:
-        with open(js_path, "r", encoding="utf-8") as f:
-            jscode = f.read()
-        script = session.create_script(jscode)
-        script.load()
-    except (OSError, frida.TransportError) as e:
-        logging.error(f"注入脚本失败: {e}")
-        _last_inject_error = "注入脚本失败"
+    # ---------- 事件 ----------
+    def _emit(self, kind, payload):
+        if not self.on_event:
+            return
         try:
-            session.detach()
-        except Exception:
-            pass
-        return 0, 0
-    logging.info("已连接到 QQMusic 进程")
+            self.on_event(kind, payload)
+        except Exception:  # 界面回调自己炸了不该带崩任务
+            logging.debug("on_event 回调异常", exc_info=True)
 
-    # 启动自检：QQ音乐一更新，EncAndDesMediaFile 的导出符号就可能失效。
-    # 先探一次，直接告诉用户"版本不匹配"，而不是让他对着满屏 invalid size 猜。
-    try:
-        probe = script.exports_sync.probe()
-        if not probe.get("ok", True):
-            logging.error(str(probe.get("message", "QQ音乐版本与 TuneFree 不匹配")))
-            logging.error("请把 QQ音乐降级到 TuneFree 适配的版本，或等 TuneFree 更新后再试")
-            session.detach()
-            return 0, 0
-    except Exception as e:
-        # 旧版 hook 没有 probe 导出，忽略即可，不影响正常解密
-        logging.debug("跳过版本自检: %s", e)
+    def _log(self, level, message):
+        logging.log(logging.ERROR if level == "error" else logging.INFO, message)
+        self._emit("log", {"level": level, "message": message})
 
-    # 收集所有待处理文件（不区分大小写，Windows 上 .MFLAC 也认）
-    file_list = []
-    for root, _dirs, files in os.walk(input_dir):
-        for file in files:
-            ext = os.path.splitext(file)[1].lower()
-            if ext in (".mflac", ".mgg"):
-                file_list.append((root, file))
-
-    total = len(file_list)
-    if total == 0:
-        logging.info(f"在 {input_dir} 里没有找到 .mflac 或 .mgg 文件")
-        session.detach()
-        return 0, 0
-
-    os.makedirs(flac_output_dir, exist_ok=True)
-    logging.info(f"找到 {total} 个文件，开始解密...")
-
-    success = 0
-    failed = 0
-    skipped = 0
-
-    try:
-        for idx, (root, file) in enumerate(file_list, 1):
-            stem, ext = os.path.splitext(file)
-            new_ext = ".flac" if ext.lower() == ".mflac" else ".ogg"
-            output_file_path = os.path.join(flac_output_dir, stem + new_ext)
-
-            if os.path.exists(output_file_path):
-                # 已解密过，跳过即可（后面照样会用它转码）
-                skipped += 1
-                emit_progress("解密", idx, total)
-                continue
-
-            src_path = os.path.join(root, file)
-            temp_input_path = None
-            temp_output_path = _mkstemp_path(new_ext)
-
-            try:
-                if src_path.isascii():
-                    # 纯英文路径：直接解密，省掉一次整文件拷贝（大文件很省时间）
-                    input_path = src_path
-                else:
-                    # 含中文/日文等：hook 里的 File 按 UTF-8 拼路径，先搬到 ASCII 临时文件更稳
-                    temp_input_path = _mkstemp_path(ext.lower())
-                    shutil.copy2(src_path, temp_input_path)
-                    input_path = temp_input_path
-
-                script.exports_sync.decrypt(input_path, temp_output_path)
-                shutil.move(temp_output_path, output_file_path)
-                success += 1
-            except Exception as e:
-                failed += 1
-                logging.error(f"解密失败: {file} - {e}")
-            finally:
-                for leftover in (temp_input_path, temp_output_path):
-                    if leftover and os.path.exists(leftover):
-                        try:
-                            os.unlink(leftover)
-                        except OSError:
-                            pass
-
-            emit_progress("解密", idx, total)
-    finally:
-        # 任何异常都要断开，否则注入会一直挂在 QQ音乐 进程里
-        try:
-            session.detach()
-        except Exception:
-            pass
-
-    logging.info(f"解密阶段完成: 成功 {success} 个，失败 {failed} 个")
-    if skipped:
-        logging.info(f"其中 {skipped} 个之前已解密过，直接复用（不需要重新解密）")
-    return success, failed
-
-# -------------------- 转码函数 --------------------
-def explain_returncode(code):
-    """把 ffmpeg/系统的返回码翻译成人话，方便用户自查。"""
-    if code in (4294967283, -13):
-        return ("权限不足/拒绝访问(EACCES)：常见原因是杀毒软件拦下了 ffmpeg.exe，"
-                "或输出目录里的同名 .mp3 正被别的程序占用（播放器/网盘同步/资源管理器预览）")
-    if code in (4294967295, -1):
-        return "ffmpeg 内部错误，通常是输入文件损坏或未解密完整"
-    if code in (4294967294, -2):
-        return "找不到输入文件(ENOENT)，可能解密产物已被移走或删除"
-    if code in (4294967264, -32):
-        return "文件正被其他进程占用(EBUSY)"
-    if code in (4294967263, -33):
-        return "参数不合法(EINVAL)"
-    if code == 1:
-        return "ffmpeg 处理失败（输入不是有效音频，或输出路径不可写）"
-    if code > 2147483647:
-        return f"系统/驱动层错误(0x{code:08X})"
-    return "未知错误"
-
-
-def _run_ffmpeg(audio_path, out_path, ffmpeg_path, bitrate):
-    """真正调用 ffmpeg，失败时抛 CalledProcessError。"""
-    cmd = [ffmpeg_path, '-i', str(audio_path), '-b:a', bitrate, str(out_path), '-y']
-    subprocess.run(cmd, check=True, capture_output=True, text=True,
-                   encoding='utf-8', errors='ignore', creationflags=_NO_WINDOW)
-
-
-def _run_ffmpeg_to_bytes(audio_path, ffmpeg_path, bitrate):
-    """
-    让 ffmpeg 把 MP3 输出到标准输出，由 Python 负责落盘。
-    有些安全软件会禁止 ffmpeg.exe 创建任何文件（连 %TEMP% 都不许），
-    但读文件和写管道是放行的，这条路能绕过去。
-    """
-    cmd = [ffmpeg_path, '-i', str(audio_path), '-b:a', bitrate, '-f', 'mp3', 'pipe:1']
-    proc = subprocess.run(cmd, check=True, capture_output=True, creationflags=_NO_WINDOW)
-    data = proc.stdout or b''
-    if len(data) < 2048:
-        raise RuntimeError(f"ffmpeg 只输出了 {len(data)} 字节，转码未成功")
-    return data
-
-
-def convert_to_mp3(audio_path, mp3_path, ffmpeg_path, bitrate='192k'):
-    try:
-        _run_ffmpeg(audio_path, mp3_path, ffmpeg_path, bitrate)
-        return True
-    except FileNotFoundError:
-        logging.error("未找到 ffmpeg.exe（请确认 ffmpeg.exe 与 main.py 在同一目录）")
-        return False
-    except OSError as e:
-        logging.error(f"无法运行 ffmpeg.exe: {e}"
-                      "（多半是杀毒软件拦截，请把 TuneFree 目录加入白名单）")
-        return False
-    except subprocess.CalledProcessError as e:
-        code = e.returncode
-        stderr = e.stderr if isinstance(e.stderr, str) else (e.stderr or b'').decode('utf-8', 'ignore')
-        detail = [x.strip() for x in stderr.splitlines() if x.strip()]
-
-        # 写入被拒(EACCES/EPERM)：退一步，让 ffmpeg 把音频输出到管道，由 Python 自己写文件。
-        if code in (4294967283, -13, 4294967291, -5):
-            logging.warning(f"{Path(mp3_path).name}: ffmpeg 无法创建输出文件，"
-                            f"改用「管道输出 + Python 落盘」重试…")
-            try:
-                data = _run_ffmpeg_to_bytes(audio_path, ffmpeg_path, bitrate)
-                Path(mp3_path).write_bytes(data)
-                logging.info(f"转码成功（管道模式）: {Path(mp3_path).name}")
-                return True
-            except Exception as e2:
-                logging.error(f"  管道模式也失败: {e2}")
-
-            # 再退一步：先写临时目录，再搬过去
-            tmp = Path(tempfile.gettempdir()) / f"tf_{os.getpid()}_{Path(mp3_path).stem}.mp3"
-            try:
-                _run_ffmpeg(audio_path, str(tmp), ffmpeg_path, bitrate)
-                shutil.move(str(tmp), str(mp3_path))
-                logging.info(f"转码成功（经临时目录中转）: {Path(mp3_path).name}")
-                return True
-            except Exception as e3:
-                logging.error(f"转码失败 {Path(audio_path).name}，返回码: {code}"
-                              f"（{explain_returncode(code)}）")
-                for line in detail[-4:]:
-                    logging.error(f"  ffmpeg: {line}")
-                logging.error(f"  经临时目录重试仍失败: {e3}")
-                return False
-            finally:
-                try:
-                    if tmp.exists():
-                        tmp.unlink()
-                except Exception:
-                    pass
-
-        logging.error(f"转码失败 {Path(audio_path).name}，返回码: {code}"
-                      f"（{explain_returncode(code)}）")
-        for line in detail[-4:]:
-            logging.error(f"  ffmpeg: {line}")
-        return False
-
-def process_audio_to_mp3(audio_dir, mp3_dir, ffmpeg_path, bitrate='192k',
-                         keep_flac=False, no_mp3=False, force=False):
-    """
-    处理 audio_dir 中的所有 flac 和 ogg 文件，根据模式转码为 MP3。
-    如果 no_mp3=True：
-        - FLAC 文件不转码（保留原文件）
-        - OGG 文件强制转码为 MP3，且删除 OGG 源文件（不保留）
-    否则：
-        - 所有文件都转码，并根据 keep_flac 决定是否删除源文件
-    force=True：已经存在的 MP3 也重新生成（默认跳过，避免重复劳动）。
-    """
-    flac_files = sorted(Path(audio_dir).glob('*.flac'))
-    ogg_files = sorted(Path(audio_dir).glob('*.ogg'))
-    all_files = flac_files + ogg_files
-    if not all_files:
-        logging.info(f"在 {audio_dir} 中没有找到 .flac 或 .ogg 文件")
-        return 0, 0
-
-    os.makedirs(mp3_dir, exist_ok=True)
-    probe = Path(mp3_dir) / ".tunefree_write_probe"
-    try:
-        probe.write_bytes(b"0")
-        probe.unlink()
-    except Exception as e:
-        logging.warning(f"输出目录 {mp3_dir} 看起来无法直接写入（{e}），"
-                        f"稍后会自动改为「管道输出 + Python 落盘」，速度会慢一点")
-
-    total = len(all_files)
-    success = 0
-    failed = 0
-    skipped = 0
-
-    logging.info(f"找到 {total} 个音频文件，开始转码 MP3...")
-
-    for idx, audio_file in enumerate(all_files, 1):
-        ext = audio_file.suffix.lower()
-        mp3_file = Path(mp3_dir) / (audio_file.stem + '.mp3')
-
-        if no_mp3 and ext == '.flac':
-            # 仅 FLAC 模式：FLAC 原样保留，不用转码
-            success += 1
-            emit_progress("转码", idx, total)
-            continue
-
-        # 仅 FLAC 模式下的 OGG 必须转 MP3 且不保留源文件；其余情况看 keep_flac
-        should_keep_original = keep_flac if not no_mp3 else False
-
-        if mp3_file.exists() and not force:
-            skipped += 1
-            if not should_keep_original:
-                force_remove(str(audio_file))
-            emit_progress("转码", idx, total)
-            continue
-
-        if convert_to_mp3(str(audio_file), str(mp3_file), ffmpeg_path, bitrate):
-            success += 1
-            if not should_keep_original and not force_remove(str(audio_file)):
-                logging.warning(f"源文件删除失败（可能被播放器占用），已保留: {audio_file.name}")
+    def _on_session_state(self, connected):
+        if connected:
+            self._emit("conn", {"ok": True, "message": "已连接 QQ音乐"})
         else:
-            failed += 1
-        emit_progress("转码", idx, total)
+            message = (self.session.last_error if self.session else "") or "与 QQ音乐 的连接已断开"
+            self._emit("conn", {"ok": False, "message": message})
 
-    logging.info(f"转码阶段完成: 成功 {success} 个，失败 {failed} 个")
-    if skipped:
-        logging.info(f"其中 {skipped} 个 MP3 之前已生成，直接跳过（要重新生成请加 --force）")
-    return success, failed
+    # ---------- 连接 ----------
+    def connect(self):
+        """连上 QQ音乐。失败返回 False，原因在 last_error 里。"""
+        global _last_inject_error
+        preset = self._preset_session
+        if preset is not None and getattr(preset, "connected", False):
+            self.session = preset
+            _last_inject_error = ""
+            self._emit("conn", {"ok": True, "message": "已连接 QQ音乐"})
+            return True
+        self.session = qsession.QQMusicSession(self.hook_path, on_state=self._on_session_state)
+        if not self.session.attach():
+            _last_inject_error = self.session.last_error or "无法连接 QQ音乐进程"
+            self._emit("conn", {"ok": False, "message": _last_inject_error})
+            return False
+        _last_inject_error = ""
+        self._emit("conn", {"ok": True, "message": "已连接 QQ音乐"})
+        return True
 
-# -------------------- 主函数 --------------------
+    def disconnect(self):
+        if self.session:
+            self.session.detach()
+            self.session = None
+
+    # ---------- 扫描 ----------
+    def scan(self):
+        """列出目录里的加密文件，能连上 QQ音乐时顺带读出时长/格式。"""
+        cover_dir = os.path.join(self.flac_dir, ".covers") if self.flac_dir else None
+        self.tracks = scanner.scan(self.input_dir, session=self.session, cover_dir=cover_dir)
+        self._emit("items", self.tracks)
+        return self.tracks
+
+    # ---------- 执行 ----------
+    def _target_paths(self, track):
+        stem = Path(track.path).stem
+        flac_path = os.path.join(self.flac_dir, stem + track.plain_ext)
+        mp3_path = os.path.join(self.mp3_dir, stem + ".mp3")
+        return flac_path, mp3_path
+
+    def _decrypt_one(self, track, dst):
+        """解一首，直接落到最终路径。
+
+        第一选择是让 QQ音乐在它自己的进程里写盘（hook 里走 kernel32）：几十 MB
+        不用跨进程搬一遍，中文文件名也不会炸。这一步失败才退回老路 —— 先用
+        英文临时名写盘再改名（frida 的 File 写不了非 ASCII 文件名，实测中文
+        文件名会抛 Illegal byte sequence）。
+        """
+        session = self.session
+        if session is None:
+            raise qsession.SessionError("还没有连接到 QQ音乐")
+
+        try:
+            wrote = session.decrypt(track.path, dst)
+            if wrote and os.path.isfile(dst) and os.path.getsize(dst) > 0:
+                return
+        except Exception as e:
+            logging.debug("直接写盘失败，改用兜底路径：%s", e)
+        force_remove(dst)
+
+        folder = os.path.dirname(dst) or "."
+        token = "%d_%d" % (os.getpid(), next(self._tmp_seq))
+        tmp = os.path.join(folder, ".tf_%s%s" % (token, track.plain_ext))
+        try:
+            session.decrypt_file(track.path, tmp)
+            os.replace(tmp, dst)
+            return
+        except Exception:
+            force_remove(tmp)
+            # 目录本身带非英文字符时退到 %TEMP% 再来一次
+            tmp = os.path.join(tempfile.gettempdir(), "tf_%s%s" % (token, track.plain_ext))
+            try:
+                session.decrypt_file(track.path, tmp)
+                shutil.move(tmp, dst)
+            finally:
+                force_remove(tmp)
+
+    def run(self, tracks=None):
+        """跑完整个任务。返回 summary。"""
+        global _last_inject_error
+        started = time.time()
+        self.cancelled = False
+        result = {"ok": 0, "fail": 0, "skip": 0, "elapsed": 0.0}
+
+        if not os.path.isdir(self.input_dir):
+            self._log("error", "输入目录不存在：%s" % self.input_dir)
+            self._emit("summary", result)
+            return result
+
+        connected = self.session is not None and self.session.connected
+        if not connected:
+            connected = self.connect()
+
+        tracks = tracks if tracks is not None else self.tracks
+        if not tracks:
+            tracks = self.scan()
+
+        targets = []
+        for track in tracks:
+            if track.status in ("done", "skipped") and not self.force:
+                result["skip"] += 1
+                continue
+            targets.append(track)
+
+        # 大文件先排：转码是固定几个线程排队干，先开工的都最久，
+        # 把最长的放前面，最后收尾就不用干等一首 50MB 的
+        def _size_of(track):
+            try:
+                return os.path.getsize(track.path)
+            except OSError:
+                return 0
+
+        targets.sort(key=_size_of, reverse=True)
+
+        total = len(targets)
+        if total == 0:
+            self._log("info", "没有需要处理的文件")
+            result["elapsed"] = round(time.time() - started, 2)
+            self.summary = result
+            self._emit("summary", result)
+            return result
+
+        for folder in (self.flac_dir, self.mp3_dir):
+            try:
+                os.makedirs(folder, exist_ok=True)
+            except OSError as e:
+                self._log("error", "创建输出目录失败：%s（%s）" % (folder, e))
+                self._emit("summary", result)
+                return result
+
+        conv = converter.Converter(ffmpeg_path(), self.bitrate, workers=self.workers,
+                                   on_event=self._on_convert_event)
+        conv.start()
+
+        try:
+            for done, track in enumerate(targets, 1):
+                if self.cancelled:
+                    break
+                track.status = "working"
+                self._emit("item", {"track": track, "state": "decrypt", "message": "正在解密"})
+
+                flac_path, mp3_path = self._target_paths(track)
+                try:
+                    if self.no_mp3 and track.plain_ext == ".flac":
+                        # 只要 FLAC：直接解到目标位置，不转码也不算跳过
+                        if os.path.exists(flac_path) and not self.force:
+                            result["skip"] += 1
+                            track.status = "skipped"
+                            track.message = "已存在，跳过"
+                        else:
+                            self._decrypt_one(track, flac_path)
+                            result["ok"] += 1
+                            track.status = "done"
+                            track.message = "已解密"
+                            track.output = flac_path
+                        self._emit("item", {"track": track, "state": "done", "message": track.message})
+                        self._emit("progress", {"phase": "解密", "done": done, "total": total})
+                        emit_progress("解密", done, total)
+                        continue
+
+                    # 正常路径：解密到中间文件，再交给转码线程池
+                    need_decrypt = True
+                    if os.path.exists(flac_path) and not self.force:
+                        need_decrypt = False
+                        self._log("info", "%s 之前已解密过，直接复用" % os.path.basename(flac_path))
+                    if need_decrypt:
+                        self._decrypt_one(track, flac_path)
+
+                    keep_src = self.keep_flac
+                    job = converter.Job(flac_path, mp3_path, keep_src=keep_src,
+                                        force=self.force, track=track)
+                    if os.path.exists(mp3_path) and not self.force:
+                        result["skip"] += 1
+                        track.status = "skipped"
+                        track.message = "MP3 已存在"
+                        if not keep_src:
+                            force_remove(flac_path)
+                        self._emit("item", {"track": track, "state": "skip", "message": track.message})
+                    else:
+                        conv.submit(job)
+                        self._emit("item", {"track": track, "state": "convert", "message": "等待转码"})
+                except Exception as e:
+                    result["fail"] += 1
+                    track.status = "failed"
+                    track.message = _human_error(e)
+                    self._log("error", "%s 解密失败：%s" % (track.name, track.message))
+                    self._emit("item", {"track": track, "state": "fail", "message": track.message})
+
+                self._emit("progress", {"phase": "解密", "done": done, "total": total})
+                emit_progress("解密", done, total)
+
+            conv.join()
+        finally:
+            conv.shutdown()
+            self.disconnect()
+
+        result["ok"] += max(0, conv.done - conv.skipped)
+        result["skip"] += conv.skipped
+        result["fail"] += conv.failed
+        result["elapsed"] = round(time.time() - started, 2)
+        self.summary = result
+
+        self._log("info", "处理完成：成功 %d 个，失败 %d 个，跳过 %d 个，用时 %.1f 秒"
+                  % (result["ok"], result["fail"], result["skip"], result["elapsed"]))
+        if result["fail"]:
+            self._log("info", "失败的大多是音质不支持：TuneFree 只能处理标准/HQ/SQ，"
+                              "臻品音质、臻品母带、杜比全景声都解不开")
+        self._emit("summary", result)
+        return result
+
+    def _on_convert_event(self, kind, job, extra=None):
+        """转码线程池的回调：把 Job 翻译成界面认识的行状态。"""
+        track = getattr(job, "track", None)
+        if kind == "start" and track is not None:
+            track.status = "working"
+            self._emit("item", {"track": track, "state": "convert", "message": "正在转码"})
+        elif kind == "done" and track is not None:
+            track.status = "done"
+            track.message = "已完成"
+            track.output = job.dst
+            self._emit("item", {"track": track, "state": "done", "message": "已完成"})
+        elif kind == "skip" and track is not None:
+            track.status = "skipped"
+            track.message = "MP3 已存在，跳过"
+            self._emit("item", {"track": track, "state": "skip", "message": track.message})
+        elif kind == "fail" and track is not None:
+            track.status = "failed"
+            track.message = job.message or "转码失败"
+            self._log("error", "%s 转码失败：%s" % (track.name, track.message))
+            self._emit("item", {"track": track, "state": "fail", "message": track.message})
+
+    def cancel(self):
+        self.cancelled = True
+
+
+def _human_error(exc):
+    """把底层异常翻译成人能看懂的一句话。"""
+    text = str(exc).strip()
+    low = text.lower()
+    if "transport" in low or "connection is closed" in low:
+        return "和 QQ音乐 的连接断了，请重新打开 QQ音乐再试"
+    if "processnotfound" in low or "not found" in low:
+        return "没有找到 QQ音乐进程"
+    if "invalid size" in low or "invalid data" in low:
+        return "这个文件解不开，多半是音质不支持（只支持标准/HQ/SQ）"
+    if "timed out" in low or "timeout" in low:
+        return "解密超时，请重试"
+    return text or "未知错误"
+
+
+# -------------------- 命令行 --------------------
 def parse_args(argv=None):
-    parser = argparse.ArgumentParser(description='解密 QQ音乐 mflac/mgg 文件并转换为 MP3')
+    parser = argparse.ArgumentParser(description="解密 QQ音乐 mflac/mgg 文件并转换为 MP3")
     parser.add_argument("-i", "--input", help="输入目录（包含 .mflac / .mgg 文件），默认为当前目录")
-    parser.add_argument("-o", "--output", help="输出根目录（默认：当前目录下的 output），其下自动创建 mp3 与 flac 两个子文件夹")
+    parser.add_argument("-o", "--output", help="输出根目录（默认：输入目录下的 output），其下自动创建 mp3 与 flac 两个子文件夹")
     parser.add_argument("--flac-dir", help="FLAC 输出目录（仅在 --keep-flac 时有效）")
     parser.add_argument("--mp3-dir", help="MP3 输出目录（覆盖默认）")
-    parser.add_argument("-b", "--bitrate", default="192k", help="MP3 比特率，例如 128k, 192k, 320k (默认: 192k)")
+    parser.add_argument("-b", "--bitrate", default=DEFAULT_BITRATE, help="MP3 比特率，例如 128k, 192k, 320k (默认: 320k)")
     parser.add_argument("--keep-flac", action="store_true", help="保留解密后的 FLAC 文件（默认不保留）")
     parser.add_argument("--no-mp3", action="store_true", help="不生成 MP3，仅保留 FLAC（忽略 --keep-flac）")
     parser.add_argument("--force", action="store_true", help="已经存在的 MP3 也重新生成（默认跳过）")
-    parser.add_argument("-v", "--version", action="version", version=f"TuneFree {VERSION}")
+    parser.add_argument("--workers", type=int, default=None, help="同时转码的进程数（默认按 CPU 自动）")
+    parser.add_argument("-v", "--version", action="version", version="TuneFree %s" % VERSION)
     return parser.parse_args(argv)
 
 
+def _print_event(kind, payload):
+    """命令行模式把事件打到控制台。"""
+    if kind == "log":
+        prefix = "错误" if payload.get("level") == "error" else "信息"
+        print("[%s] %s" % (prefix, payload.get("message", "")), flush=True)
+    elif kind == "item":
+        track = payload.get("track")
+        state = payload.get("state")
+        if state in ("done", "fail", "skip") and track is not None:
+            print("@@ITEM %s %s %s" % (state, track.name, payload.get("message", "")), flush=True)
+    elif kind == "conn":
+        if not payload.get("ok"):
+            print("[错误] %s" % payload.get("message", ""), flush=True)
+
+
 def main(argv=None):
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s', datefmt='%H:%M:%S')
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
+                        datefmt="%H:%M:%S")
     args = parse_args(argv)
+    logging.info("TuneFree %s" % VERSION)
 
-    logging.info(f"TuneFree {VERSION}")
-
-    # 比特率只接受 128k / 320k 这种写法，别把奇怪的值传给 ffmpeg
-    bitrate = (args.bitrate or "192k").strip().lower()
-    if not re.fullmatch(r"\d{2,3}k", bitrate):
-        logging.warning(f"比特率 {args.bitrate!r} 不合法，已改用 192k")
-        bitrate = "192k"
-    else:
-        kbps = int(bitrate[:-1])
-        if kbps > 320:
-            logging.warning(f"比特率 {bitrate} 超出 MP3 上限，已改为 320k")
-            bitrate = "320k"
-        elif kbps < 32:
-            logging.warning(f"比特率 {bitrate} 过低，已改为 192k")
-            bitrate = "192k"
-
-    # 确定输入目录
     input_dir = os.path.abspath(args.input) if args.input else os.getcwd()
     if not os.path.isdir(input_dir):
-        logging.error(f"输入目录不存在: {input_dir}")
+        logging.error("输入目录不存在: %s" % input_dir)
         return 1
 
-    # 确定输出目录（两个子目录各自独立，只给一个也能用）
-    if args.output:
-        root_output = os.path.abspath(args.output)
-    else:
-        root_output = os.path.join(os.getcwd(), "output")
+    root_output, flac_dir, mp3_dir = default_output_dirs(input_dir, args.output)
+    flac_dir = os.path.abspath(args.flac_dir) if args.flac_dir else flac_dir
+    mp3_dir = os.path.abspath(args.mp3_dir) if args.mp3_dir else mp3_dir
 
-    flac_output_dir = (os.path.abspath(args.flac_dir) if args.flac_dir
-                       else os.path.join(root_output, "flac"))
-    mp3_output_dir = (os.path.abspath(args.mp3_dir) if args.mp3_dir
-                      else os.path.join(root_output, "mp3"))
+    logging.info("输入目录: %s" % input_dir)
+    logging.info("FLAC 输出: %s" % flac_dir)
+    logging.info("MP3 输出: %s" % mp3_dir)
 
-    logging.info(f"输入目录: {input_dir}")
-    logging.info(f"FLAC 输出: {flac_output_dir}")
-    logging.info(f"MP3 输出: {mp3_output_dir}")
-
-    # 获取 ffmpeg 路径
-    ffmpeg_path = resource_path("ffmpeg.exe")
-    if not os.path.exists(ffmpeg_path):
-        logging.error(f"未找到 ffmpeg.exe，请将其放在 {ffmpeg_path} 路径")
+    tool = ffmpeg_path()
+    if not os.path.exists(tool):
+        logging.error("未找到 ffmpeg.exe，请将其放在 %s 路径" % tool)
         return 1
 
-    # 解密
-    dec_success, dec_failed = run_decrypt(input_dir, flac_output_dir)
-
-    # 转码：只要 FLAC 目录里确实有音频文件就继续（之前解过、这次被跳过的也算）
-    has_audio = bool(list(Path(flac_output_dir).glob('*.flac')) or
-                     list(Path(flac_output_dir).glob('*.ogg')))
-    if has_audio:
-        process_audio_to_mp3(flac_output_dir, mp3_output_dir, ffmpeg_path,
-                             bitrate, args.keep_flac, args.no_mp3, args.force)
-    elif dec_failed:
-        logging.error("解密全部失败，没有可转码的文件；请查看上面的失败原因")
-    elif _last_inject_error:
-        logging.error(f"{_last_inject_error}；没有可转码的文件，这次不会有任何输出")
-    else:
-        logging.info("没有可用的 FLAC/OGG 文件，跳过转码步骤")
-        logging.info("小提示：确认选择的目录里确实有 .mflac / .mgg 文件（可以包含子文件夹）")
-
-    if dec_success and dec_failed:
-        logging.info(f"解密 {dec_success} 个成功、{dec_failed} 个失败（失败的文件名见上文）")
-
-    # 一个文件都没解出来、也没有旧文件可转码 —— 这就是失败，别让界面显示「完成」
-    if _last_inject_error and not dec_success and not has_audio:
+    runner = Runner(input_dir, flac_dir, mp3_dir, args.bitrate, args.keep_flac,
+                    args.no_mp3, args.force, args.workers, on_event=_print_event)
+    if not runner.connect():
+        logging.error("%s；这次不会有任何输出" % _last_inject_error)
         return 1
 
-    logging.info("全部处理完成")
+    summary = runner.run()
+    if summary["ok"] == 0 and summary["skip"] == 0:
+        return 1
     return 0
 
 
@@ -486,7 +486,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logging.warning("已被用户中断")
         sys.exit(130)
-    except Exception:  # 兜底：别让 GUI 只看到一个莫名其妙的返回码
+    except Exception:  # 兜底：别让界面只看到一个莫名其妙的返回码
         logging.error("程序异常终止，下面是详细信息：")
         traceback.print_exc()
         sys.exit(1)

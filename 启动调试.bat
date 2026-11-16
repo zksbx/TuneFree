@@ -1,63 +1,38 @@
 @echo off
-chcp 65001 >nul
+chcp 936 >nul
 cd /d "%~dp0"
 set PYTHONIOENCODING=utf-8
 set PYTHONUTF8=1
+set "PY=C:\Program Files (x86)\python3.12.10\python.exe"
+if not exist "%PY%" set "PY=python"
 
 echo ============================================================
-echo   TuneFree æºç è°ƒè¯•å¯åŠ¨å™¨
-echo   ç›®å½•: %CD%
+echo   TuneFree Ô´Âëµ÷ÊÔÆô¶¯Æ÷£¨v3 ĞÂ½çÃæ£©
+echo   Ä¿Â¼: %CD%
 echo ============================================================
 echo.
 
-rem ---------- 1. æ£€æŸ¥ Python ----------
-where python >nul 2>nul
-if errorlevel 1 (
-    echo [é”™è¯¯] æ²¡æ‰¾åˆ° pythonï¼Œè¯·å…ˆå®‰è£… Python 3 å¹¶å‹¾é€‰ Add to PATH
-    pause
-    exit /b 1
-)
-for /f "delims=" %%v in ('python -c "import sys;print(sys.version.split()[0])"') do set PYVER=%%v
-echo [1/4] Python %PYVER%  OK
+"%PY%" -c "import PySide6, frida" >nul 2>nul
+if errorlevel 1 goto nodep
 
-rem ---------- 2. æ£€æŸ¥ä¾èµ– ----------
-python -c "import PySide6" >nul 2>nul
-if errorlevel 1 (
-    echo [2/4] ç¼ºå°‘ PySide6ï¼Œæ­£åœ¨å®‰è£…...
-    python -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple PySide6
-) else (
-    echo [2/4] PySide6  OK
-)
-
-python -c "import frida" >nul 2>nul
-if errorlevel 1 (
-    echo       ç¼ºå°‘ fridaï¼Œæ­£åœ¨å®‰è£…...
-    python -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple frida
-) else (
-    echo       frida     OK
-)
-
-rem ---------- 3. æ£€æŸ¥æºæ–‡ä»¶ ----------
-if exist "main.py"            (echo [3/4] main.py  OK)           else (echo [é”™è¯¯] ç¼ºå°‘ main.py & pause & exit /b 1)
-if exist "TuneFree.py"        (echo       TuneFree.py  OK)       else (echo [é”™è¯¯] ç¼ºå°‘ TuneFree.py & pause & exit /b 1)
-if exist "version.py"         (echo       version.py  OK)        else (echo [è­¦å‘Š] ç¼ºå°‘ version.pyï¼Œç‰ˆæœ¬å·å°†é€€å›å†…ç½®å€¼)
-if exist "hook_qq_music.js"   (echo       hook_qq_music.js  OK)  else (echo [é”™è¯¯] ç¼ºå°‘ hook_qq_music.js & pause & exit /b 1)
-if exist "ffmpeg.exe"         (echo       ffmpeg.exe  OK)        else (echo [é”™è¯¯] ç¼ºå°‘ ffmpeg.exeï¼Œè½¬ç ä¼šå¤±è´¥)
-if exist "main.exe"           (echo       main.exe å­˜åœ¨ï¼Œå°†ä¼˜å…ˆä½¿ç”¨æ‰“åŒ…ç‰ˆåç«¯) else (echo       main.exe ä¸å­˜åœ¨ï¼Œå°†ç”¨ python main.py)
-
-rem ---------- 4. å¯åŠ¨ ----------
-if /i "%~1"=="--check" (
-    echo [4/4] æ£€æŸ¥æ¨¡å¼ï¼Œä¸å¯åŠ¨ç•Œé¢
-    exit /b 0
-)
-
-echo [4/4] å¯åŠ¨ç•Œé¢ ...
+echo [1/2] Python: %PY%
+echo [2/2] Æô¶¯½çÃæ ...£¨¹ØµôÕâ¸öºÚ´°¿Ú = ÍË³ö³ÌĞò£©
 echo.
-echo   æç¤ºï¼šè½¬ç å‰å…ˆæ‰“å¼€ QQéŸ³ä¹å¹¶ç™»å½•ï¼ŒæŠŠ .mflac / .mgg æ­Œæ”¾è¿›ä¸€ä¸ªæ–‡ä»¶å¤¹å†é€‰å®ƒ
+echo   ÌáĞÑ£ºÏÈ´ò¿ª QQÒôÀÖ²¢µÇÂ¼£¬ÔÙ»ØÕâÀïÑ¡ÎÄ¼ş¼Ğ£»
+echo         ÏÂÃæÕâĞ©ÎÄ×ÖÊÇ³ÌĞòÈÕÖ¾£¬±¨´íÊ±°Ñ×îºó¼¸Ê®ĞĞ·¢ÎÒ¡£
 echo.
-python TuneFree.py
+"%PY%" app.py
+set RC=%errorlevel%
 echo.
 echo ============================================================
-echo   ç¨‹åºå·²é€€å‡ºï¼Œè¿”å›ç  %errorlevel%
+echo   ³ÌĞòÒÑÍË³ö£¬·µ»ØÂë %RC%
 echo ============================================================
 pause
+exit /b 0
+
+:nodep
+echo [´íÎó] Ã»ÕÒµ½Í¬Ê±×°ÁË PySide6 ºÍ frida µÄ Python¡£
+echo        ÇëÏÈÖ´ĞĞ£º
+echo          python -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple PySide6 frida
+pause
+exit /b 1

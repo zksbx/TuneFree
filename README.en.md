@@ -40,8 +40,8 @@ TuneFree does something simple: **it calls QQ Music's own decryption function in
 ## Three steps
 
 1. **Open QQ Music and log in**, keep it running (you don't need to play anything)
-2. Double-click `TuneFree.exe`, pick the folder holding your `.mflac` or `.mgg` files
-3. Press **Start**, wait for the progress bar, collect the `MP3`s from the output folder
+2. Double-click `TuneFree.exe`, click the folder button on the left of the top bar and pick the folder holding your `.mflac` or `.mgg` files (or just drag the folder onto the window)
+3. Press **Start converting**, wait for the progress to finish, collect the `MP3`s from `output\mp3` (you get a dialog, and a system notification if you enabled it)
 
 Output files keep the original names, so you can copy them straight onto a phone or car stereo.
 
@@ -68,10 +68,19 @@ Your antivirus will still complain, and that is expected: TuneFree injects code 
 ## Features
 
 - 🎵 Batch decryption of `.mflac` / `.mgg`, walks subfolders automatically
-- 🎚 Three output modes: MP3 only, lossless FLAC only, or keep both
-- ⚡ Resume friendly: a run that was interrupted skips finished files next time
-- 📊 Live progress bar — you can see which step is stuck
-- 🔔 Built-in update check
+- 🎚 `320k` MP3 by default; keep the decrypted lossless files with one checkbox
+- 🏷 Format pills tell you where each track stands: `MFLAC` / `MGG` not decrypted yet, `FLAC` / `OGG` decrypted, `MP3` converted
+- 🗂 One-click filter pills (all / undecrypted / `MFLAC` / `MGG` / `FLAC` / `OGG` / `MP3`) with live counts, plus an artist filter
+- 🎧 Double-click any row to preview it; the player bar shows cover art and two lyric lines. Click the cover or **Immersive** for a full-page player: cover and controls on the left, bilingual lyrics on the right
+- 🔀 Pick which copy to play when a song has MP3 / FLAC / OGG versions, right from the player bar
+- 🪟 Mini player: a small always-on-top window with lyrics and progress that remembers where you put it
+- 📥 Drag and drop: drop a folder onto the window to start scanning
+- ⌨️ Global media keys (play/pause, next, previous) plus a set of in-app shortcuts
+- 🔔 Tray mode: closing the window keeps a conversion running in the background, with a notification when it is done
+- 🎨 Light / dark built in, plus up to three custom colour schemes; UI and lyric font sizes are adjustable
+- ⚡ Multi-threaded encoding + resume: an interrupted run skips what is already done
+- 🔄 Update check with in-place upgrade that keeps your colours, font sizes and options
+- 📖 Help works offline: Help and Support fall back to the bundled guide when there is no network
 - 🔒 Offline: apart from the update check it contacts no server at all
 
 ## Requirements
@@ -166,13 +175,21 @@ Command-line options:
 
 ```
 app.py               single entry point: GUI with no args, CLI with --cli
-TuneFree.py          GUI (PySide6)
+TuneFree.py          main window and every custom-painted widget (PySide6)
+miniplayer.py        mini player window
+hotkeys.py           global media keys (low-level keyboard hook)
+player.py            playback wrapper around QMediaPlayer
+lyrics.py            lyric lookup, parsing and cache
 main.py              CLI / backend: inject, decrypt, encode
+scanner.py           scans the music folder, reads metadata, finds covers
+metainfo.py          FLAC / OGG / MP3 header parsing
+converter.py         ffmpeg encoding thread pool
+session.py           session / process-injection helpers
 hook_qq_music.js     Frida injection script (the decryption core)
 version.py           single source of truth for the version and repo URL
 version.json         update source for mainland users (served via jsDelivr)
 TuneFree.spec        PyInstaller spec (produces exactly one TuneFree.exe)
-docs/                website (static single page)
+docs/                website (static single page, Chinese and English)
 发版清单.md           release checklist (Chinese)
 ```
 

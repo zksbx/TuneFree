@@ -241,7 +241,7 @@
     </div>
     <p class="cta-hint">The mirror is on <b>Lanzou</b> — no login, no sign-up. Access code <span class="pwd-pill">0211</span> is copied for you when you click.</p>
     <p class="meta">
-      <span id="verText">Latest v2.1.3</span>
+      <span id="verText">Latest v3.1.2</span>
     </p>
   </div>
 </header>
@@ -259,12 +259,12 @@
       <div class="step">
         <div class="num">2</div>
         <h3>Pick the folder with your songs</h3>
-        <p>Unzip, double-click <code>TuneFree.exe</code>, then choose the folder holding your <code>.mflac</code> or <code>.mgg</code> files.</p>
+        <p>Unzip, double-click <code>TuneFree.exe</code>, then click the folder button on the left of the top bar and choose the folder holding your <code>.mflac</code> / <code>.mgg</code> files (or just drag the folder onto the window).</p>
       </div>
       <div class="step">
         <div class="num">3</div>
-        <h3>Press start</h3>
-        <p>Finished MP3s land in the output folder, named exactly like the originals — copy them anywhere.</p>
+        <h3>Press <b>Start converting</b></h3>
+        <p>A progress toast appears in the bottom-right corner. When it finishes, collect the MP3s from <code>output\mp3</code> — names match the originals.</p>
       </div>
     </div>
   </div>
@@ -291,10 +291,16 @@
     <p class="sub">Decryption pulls the key from inside the running client; encoding is handed to ffmpeg.</p>
     <div class="grid">
       <div class="feat"><span class="ico">🔓</span><h3>Decrypts .mflac / .mgg</h3><p>It injects into the QQ Music process and calls its own decryption routine — no cloud service, no subscription.</p></div>
-      <div class="feat"><span class="ico">🎚️</span><h3>Three output modes</h3><p>MP3 only, lossless FLAC only, or keep both. Bitrate 128k / 192k / 320k.</p></div>
-      <div class="feat"><span class="ico">📁</span><h3>Tidy output</h3><p>Walks subfolders recursively and writes to <code>output/mp3</code> and <code>output/flac</code>, keeping the original names.</p></div>
-      <div class="feat"><span class="ico">📊</span><h3>Live progress</h3><p>Both decryption and encoding report progress, so you can see exactly where it stalls. Any file that fails is named in the log.</p></div>
-      <div class="feat"><span class="ico">🔁</span><h3>Resume safe</h3><p>Interrupted halfway? Running it again skips the files already finished instead of starting over.</p></div>
+      <div class="feat"><span class="ico">🎚️</span><h3>320k MP3 by default</h3><p>Decrypt, then encode straight to MP3 at 320k / 256k / 192k / 128k. Want the lossless files too? One checkbox in Convert options.</p></div>
+      <div class="feat"><span class="ico">🏷️</span><h3>See where each track stands</h3><p>The format pills show <code>MFLAC</code>/<code>MGG</code> before decryption, <code>FLAC</code>/<code>OGG</code> once decrypted, <code>MP3</code> when converted.</p></div>
+      <div class="feat"><span class="ico">🗂️</span><h3>Filter pills</h3><p>All / undecrypted / each format, one click, with live counts. Hit <b>Filter</b> to keep only the artists you want.</p></div>
+      <div class="feat"><span class="ico">🎧</span><h3>Preview and immersive player</h3><p>Double-click a row to play it; the player bar shows cover art and two lyric lines. Click the cover or <b>Immersive</b> for a full-page player with bilingual lyrics.</p></div>
+      <div class="feat"><span class="ico">🔀</span><h3>Pick the version you hear</h3><p>When a song has MP3, FLAC and OGG copies, switch between them right on the player bar; double-clicking inside a format filter plays that copy first.</p></div>
+      <div class="feat"><span class="ico">🪟</span><h3>Mini player</h3><p>A small always-on-top window with cover, title, the current lyric line and progress. Drag it anywhere and it returns there next time.</p></div>
+      <div class="feat"><span class="ico">📥</span><h3>Drag it in</h3><p>Drop a folder onto the window to scan it. Media keys and shortcuts such as <code>Ctrl+O</code> / <code>Ctrl+F</code> / <code>Ctrl+R</code> come ready.</p></div>
+      <div class="feat"><span class="ico">🔔</span><h3>Tray and notifications</h3><p>Closing the window keeps conversions running in the background; a system notification tells you when a batch finishes.</p></div>
+      <div class="feat"><span class="ico">🎨</span><h3>Your colours, your sizes</h3><p>Light / dark built in plus three custom schemes; UI and lyric font sizes are set separately.</p></div>
+      <div class="feat"><span class="ico">⚡</span><h3>Multi-threaded + resume safe</h3><p>Encoder threads scale with your CPU count and larger files go first; an interrupted run skips what is done.</p></div>
       <div class="feat"><span class="ico">🛡️</span><h3>Nothing phones home</h3><p>Apart from the update check it contacts no server. Your library and files stay on your disk.</p></div>
     </div>
   </div>
@@ -306,13 +312,15 @@
     <p class="sub">GitHub is recommended — always the newest and the cleanest. Use the mirror when GitHub is unreachable.</p>
     <div class="dl">
       <div class="dl-main">
-        <div class="ver"><b id="verNum">v2.1.3</b><span class="badge">Latest</span></div>
-        <div class="filesize" id="sizeText">Windows 10 / 11 64-bit · Portable · Unzip and run · 61 MB download</div>
+        <div class="ver"><b id="verNum">v3.1.2</b><span class="badge">Latest</span></div>
+        <div class="filesize" id="sizeText">Windows 10 / 11 64-bit · Portable · Unzip and run · 73.2 MB download</div>
         <a class="btn btn-primary" id="dlPrimary" href="https://github.com/zksbx/TuneFree/releases/latest" target="_blank" rel="noopener">⬇ Download from GitHub</a>
         <ul class="changelog">
-          <li>Redesigned theme switch: sun and moon slide with the knob, plus a whole-window fade on change</li>
-          <li>Failed conversions now list likely causes and what to try</li>
-          <li>Download shrank from 98 MB to <b>61 MB</b></li>
+          <li>Offline, "Help" and "Support the author" open the bundled guide instead, tip codes included</li>
+          <li>New interface throughout: no more sidebar — top bar, library card and player bar, with filter pills and an artist filter</li>
+          <li>New immersive player page: the cover tints the whole page, cover and controls on the left, bilingual lyrics on the right</li>
+          <li>New mini player, global media keys, tray mode and completion notifications; drop a folder on the window to import it</li>
+          <li>Switch the playing version of a song (MP3 / FLAC / OGG) from the player bar; Settings is now a sidebar with grouped cards</li>
         </ul>
         <p class="meta" style="text-align:left;margin-top:14px">
           Older builds live on the <a href="https://github.com/zksbx/TuneFree/releases" target="_blank" rel="noopener">Releases page</a>.
@@ -344,7 +352,7 @@
       <ul>
         <li><b>Your antivirus will complain.</b> The app uses Frida to inject code into the QQ Music process, which is exactly what malware does. Add an exclusion — the source is public.</li>
         <li><b>The first launch may be stopped by a blue window.</b> That is SmartScreen, not a detection. Right-click the zip → Properties → tick <b>Unblock</b> → then extract and it will not appear again. Already extracted? Click <b>More info</b> → <b>Run anyway</b>.</li>
-        <li><b>QQ Music must be running first</b> — otherwise the app says so and exits.</li>
+        <li><b>QQ Music must be running and signed in</b> — the app probes every two seconds, so the connection pill in the top bar turns green once QQ Music is up. No restart needed.</li>
         <li><b>Only the Standard / HQ / SQ tiers are supported</b> — songs downloaded as Hi-Res (臻品音质), Master (臻品母带) or Dolby Atmos carry no normal audio stream and will always fail.</li>
         <li><b>Extract somewhere ordinary.</b> Inside managed folders (corporate drives, some user directories) ffmpeg may lack permission to write files.</li>
       </ul>
@@ -373,28 +381,28 @@
 <section id="help">
   <div class="wrap">
     <h2>Help</h2>
-    <p class="sub">The window has three parts: options on top, the running log in the middle, the start button at the bottom.</p>
+    <p class="sub">The window has three parts: the top bar for picking a folder, the library list in the middle, the player bar at the bottom.</p>
 
     <div class="help-grid">
       <div class="card">
         <h3>🖥️ What's in the window</h3>
         <ul>
-          <li><b>Input folder</b>: where your <code>.mflac</code> / <code>.mgg</code> files live. Leave it empty to use the app's own folder.</li>
-          <li><b>Output folder</b>: results go here, and the app creates <code>mp3</code> / <code>flac</code> subfolders inside it.</li>
-          <li><b>MP3 bitrate</b>: 192k by default; pick 320k for better quality and bigger files.</li>
-          <li><b>Output format</b>: MP3 only / FLAC only / keep both.</li>
-          <li><b>Log</b>: every step is written here. If something breaks, paste it into an AI assistant or send it to the author.</li>
+          <li><b>Song folder</b>: the folder holding <code>.mflac</code> / <code>.mgg</code>; click the folder button on the left of the top bar to switch, or drop a folder on the window.</li>
+          <li><b>Filter pills</b>: All / undecrypted / MFLAC / MGG / FLAC / OGG / MP3, with live counts; the <b>Filter</b> pill on the right narrows by artist.</li>
+          <li><b>List</b>: title, artist, format pills, size, duration. Sorting lives on the right of the toolbar; double-click to preview, right-click or use the row’s ⋯ to remove a row.</li>
+          <li><b>Convert options</b>: MP3 bitrate, keep the decrypted lossless files, re-encode existing MP3s.</li>
+          <li><b>Settings</b>: five pages in a left sidebar — Look (schemes, custom colours, font sizes), Format names, Behavior (tray, notifications, media keys, mini player), Cache, About.</li>
         </ul>
       </div>
       <div class="card">
         <h3>🚀 Order of operations</h3>
         <ol>
-          <li>Open QQ Music, log in, and leave it running.</li>
+          <li>Open QQ Music and log in; it just needs to keep running.</li>
           <li>Double-click <code>TuneFree.exe</code>.</li>
-          <li>Click <b>Browse</b> next to the input field and pick the folder holding your songs.</li>
-          <li>Choose the output format and bitrate.</li>
-          <li>Press <b>Start</b> and wait for the progress bar to finish.</li>
-          <li>Collect your files from the output folder.</li>
+          <li>Click the folder button on the left of the top bar and pick the folder holding your songs, or drag it onto the window.</li>
+          <li>Optionally open <b>Convert options</b> to set bitrate and whether to keep the lossless files.</li>
+          <li>Press <b>Start converting</b>; progress floats in the bottom-right, and with tray notifications on you also get a system notification when it finishes.</li>
+          <li>Collect your files from <code>output\mp3</code>.</li>
         </ol>
       </div>
     </div>
@@ -452,7 +460,7 @@
 
     <details>
       <summary>Does it look inside subfolders?</summary>
-      <p>Yes — it scans every level below the input folder for <code>.mflac</code> / <code>.mgg</code>.</p>
+      <p>Yes — it scans every level below the folder you pick for <code>.mflac</code> / <code>.mgg</code>.</p>
     </details>
 
     <details>

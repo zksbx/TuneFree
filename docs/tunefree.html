@@ -241,7 +241,7 @@
     </div>
     <p class="cta-hint">备用通道是<b>蓝奏云</b>：不用登录、不用注册。提取码 <span class="pwd-pill">0211</span>，点按钮会自动复制。</p>
     <p class="meta">
-      <span id="verText">最新版本 v2.1.3</span>
+      <span id="verText">最新版本 v3.1.2</span>
     </p>
   </div>
 </header>
@@ -259,12 +259,12 @@
       <div class="step">
         <div class="num">2</div>
         <h3>选好歌所在的文件夹</h3>
-        <p>解压后双击 <code>TuneFree.exe</code>，选择存放 <code>.mflac或.mgg</code> 文件的目录。</p>
+        <p>解压后双击 <code>TuneFree.exe</code>，点顶栏左侧的文件夹按钮选存放 <code>.mflac</code> / <code>.mgg</code> 的目录；也可以直接把文件夹拖进窗口。</p>
       </div>
       <div class="step">
         <div class="num">3</div>
-        <h3>点开始</h3>
-        <p>转换完成的 MP3 在输出目录里，文件名和原曲一致，可以随意转存。</p>
+        <h3>点「开始转换」</h3>
+        <p>进度会浮在窗口右下角，跑完弹完成提示；去 <code>output\mp3</code> 拿 MP3，文件名和原曲一致。</p>
       </div>
     </div>
   </div>
@@ -291,10 +291,16 @@
     <p class="sub">解密部分靠进程内取密钥，转码部分交给 ffmpeg。</p>
     <div class="grid">
       <div class="feat"><span class="ico">🔓</span><h3>解密 .mflac / .mgg</h3><p>通过注入 QQ音乐进程调用它自己的解密函数，不依赖云端，也不需要会员。</p></div>
-      <div class="feat"><span class="ico">🎚️</span><h3>三种输出选择</h3><p>只要 MP3、只要无损 FLAC，或者两个都留。比特率支持 128k / 192k / 320k。</p></div>
-      <div class="feat"><span class="ico">📁</span><h3>自动整理目录</h3><p>递归处理子文件夹，按原文件名输出到 <code>output/mp3</code>、<code>output/flac</code>。</p></div>
-      <div class="feat"><span class="ico">📊</span><h3>实时进度</h3><p>解密和转码两条进度都看得见，卡在哪一步一目了然，失败的文件会在日志里点名。</p></div>
-      <div class="feat"><span class="ico">🔁</span><h3>断点续跑</h3><p>转过一半中断了？重跑会跳过已经完成的文件，不会从头再来一遍。</p></div>
+      <div class="feat"><span class="ico">🎚️</span><h3>默认直接出 320k</h3><p>解密完顺手转 MP3，比特率可选 320k / 256k / 192k / 128k；想留无损就在转换选项里勾一下。</p></div>
+      <div class="feat"><span class="ico">🏷️</span><h3>每首歌走到哪一步</h3><p>格式胶囊写着 <code>MFLAC</code>/<code>MGG</code> 是还没解密，<code>FLAC</code>/<code>OGG</code> 是解密好了，<code>MP3</code> 是转完了。</p></div>
+      <div class="feat"><span class="ico">🗂️</span><h3>胶囊一键筛选</h3><p>全部 / 未解密 / 各格式一键切换，计数实时更新；点「筛选」还能按歌手过滤，只留想听的那几位。</p></div>
+      <div class="feat"><span class="ico">🎧</span><h3>试听与沉浸播放页</h3><p>双击列表里的歌直接播放，播放条带封面和两行歌词；点封面或「沉浸」进整页播放页，右边是中英双语歌词。</p></div>
+      <div class="feat"><span class="ico">🔀</span><h3>想听哪版听哪版</h3><p>同一首歌有 MP3、FLAC、OGG 几份文件时，播放条上直接切；在哪个格式分类里双击，就优先播那一版。</p></div>
+      <div class="feat"><span class="ico">🪟</span><h3>迷你播放器</h3><p>缩成一个小窗浮在桌面一角，封面、歌名、当前那句歌词和进度都在，拖到哪下次就回到哪。</p></div>
+      <div class="feat"><span class="ico">📥</span><h3>拖进来就开始</h3><p>把文件夹拖到窗口上就能扫描；媒体键、<code>Ctrl+O</code>、<code>Ctrl+F</code>、<code>Ctrl+R</code> 这些快捷键也都配好了。</p></div>
+      <div class="feat"><span class="ico">🔔</span><h3>托盘常驻与完成通知</h3><p>关窗口不退出，转换在后台继续跑；转完发一条系统通知，点托盘图标就回来。</p></div>
+      <div class="feat"><span class="ico">🎨</span><h3>配色和字号自己调</h3><p>浅色 / 深色内置，还能存三套自定义配色；主界面和歌词字号分开调。</p></div>
+      <div class="feat"><span class="ico">⚡</span><h3>多线程 + 断点续跑</h3><p>按 CPU 核数自动开转码线程、大文件先排；中途中断的话，重跑跳过已完成的。</p></div>
       <div class="feat"><span class="ico">🛡️</span><h3>不联网</h3><p>除了检查更新，程序不会主动连接任何服务器。歌单和文件都留在本地。</p></div>
     </div>
   </div>
@@ -306,13 +312,15 @@
     <p class="sub">推荐走 GitHub，版本最新也最干净；GitHub 打不开时用备用通道。</p>
     <div class="dl">
       <div class="dl-main">
-        <div class="ver"><b id="verNum">v2.1.3</b><span class="badge">最新</span></div>
-        <div class="filesize" id="sizeText">Windows 10 / 11 64 位 · 免安装 · 解压即用 · 安装包 61 MB</div>
+        <div class="ver"><b id="verNum">v3.1.2</b><span class="badge">最新</span></div>
+        <div class="filesize" id="sizeText">Windows 10 / 11 64 位 · 免安装 · 解压即用 · 安装包 73.2 MB</div>
         <a class="btn btn-primary" id="dlPrimary" href="https://github.com/zksbx/TuneFree/releases/latest" target="_blank" rel="noopener">⬇ 从 GitHub 下载</a>
         <ul class="changelog">
-          <li>主题开关重做：太阳和月亮跟着滑块走，换主题时整窗平滑过渡</li>
-          <li>转换失败会列出可能的原因和对应做法，不再只有一句报错</li>
-          <li>安装包从 98 MB 减到 <b>61 MB</b>，解压后也少了 100 MB</li>
+          <li>断网时「使用帮助」和「支持作者」直接打开程序自带的说明书，赞赏码也能看到</li>
+          <li>界面整套重做：取消左侧栏，改成顶栏 + 曲库卡片 + 播放条；格式胶囊一键筛选，还能按歌手过滤</li>
+          <li>新增沉浸播放页：整页封面染色压暗，左边封面与进度控制，右边中英双语歌词，当前句加粗放大</li>
+          <li>新增迷你播放器、全局媒体键、托盘常驻、转换完成系统通知，支持把文件夹拖进窗口导入</li>
+          <li>播放条可以切换同名歌曲的播放版本（MP3 / FLAC / OGG）；设置页改成左侧导航 + 右侧分组卡片</li>
         </ul>
         <p class="meta" style="text-align:left;margin-top:14px">
           历史版本见 <a href="https://github.com/zksbx/TuneFree/releases" target="_blank" rel="noopener">Releases 页面</a>。
@@ -344,7 +352,7 @@
       <ul>
         <li><b>杀毒软件会报警</b>——程序用 Frida 往 QQ音乐进程里注入代码，这个行为本身就很像病毒。加信任区即可，源码是公开的。</li>
         <li><b>第一次双击被蓝色窗口挡住</b>——那是 SmartScreen，不是报毒。先右键压缩包 → 属性 → 勾选「解除锁定」→ 再解压就不会再弹；已经解压的，点「更多信息」→「仍要运行」。</li>
-        <li><b>必须先打开 QQ音乐</b>，没开的话程序会直接提示并退出。</li>
+        <li><b>必须先打开 QQ音乐并登录</b>——程序每两秒探一次，QQ音乐打开后顶栏的连接状态会自动变绿，不用重启程序。</li>
         <li><b>音质只支持「标准 / HQ / SQ」三档</b>——开了 Hi-Res（臻品音质）、臻品母带、杜比全景声的歌，拿到的不是普通音频流，转换一定失败。</li>
         <li><b>换个盘解压</b>——放在某些受管控的目录（比如系统盘的用户目录、企业管控盘）里，ffmpeg 可能没有写文件权限。</li>
       </ul>
@@ -373,17 +381,17 @@
 <section id="help">
   <div class="wrap">
     <h2>使用帮助</h2>
-    <p class="sub">界面上就三块：上面选参数，中间是运行日志，最下面是开始按钮。</p>
+    <p class="sub">界面上就三块：顶栏选文件夹、中间曲库列表、底部播放条。</p>
 
     <div class="help-grid">
       <div class="card">
         <h3>🖥️ 界面上都有什么</h3>
         <ul>
-          <li><b>输入目录</b>：放 <code>.mflac</code>、<code>.mgg</code> 的文件夹，留空则为程序所在目录。</li>
-          <li><b>输出目录</b>：转换结果都放这里，程序会自动在里面建 <code>mp3</code> / <code>flac</code> 子文件夹。</li>
-          <li><b>MP3 比特率</b>：默认 192k，追求音质选 320k，文件会大一些。</li>
-          <li><b>输出格式</b>：仅 MP3 / 仅 FLAC / 两者都留。</li>
-          <li><b>日志</b>：每一步都写在这，出错时可以把这个发给AI工具看看，或者联系作者。</li>
+          <li><b>歌曲文件夹</b>：放 <code>.mflac</code>、<code>.mgg</code> 的文件夹，点顶栏左侧的文件夹按钮就能换，也可以直接把文件夹拖进窗口。</li>
+          <li><b>筛选胶囊</b>：全部 / 未解密 / MFLAC / MGG / FLAC / OGG / MP3 一键切换，计数实时更新；点最右的「筛选」按歌手过滤。</li>
+          <li><b>列表</b>：歌名、歌手、格式胶囊、大小、时长；工具行右侧可切排序，双击试听，右键或用行尾「⋯」删行。</li>
+          <li><b>转换选项</b>：MP3 品质、是否保留解密出的无损文件、是否重转已存在的。</li>
+          <li><b>设置</b>：左侧导航分五页——外观（配色、自定义颜色、字号）、识别格式、行为（托盘、通知、媒体键、迷你窗）、缓存、关于。</li>
         </ul>
       </div>
       <div class="card">
@@ -391,10 +399,10 @@
         <ol>
           <li>打开 QQ音乐并登录，保持运行即可。</li>
           <li>双击 <code>TuneFree.exe</code>。</li>
-          <li>选中输入目录后方的「浏览」选择歌曲文件所在文件夹。</li>
-          <li>选输出格式和比特率。</li>
-          <li>点「开始执行」，等进度跑完。</li>
-          <li>去输出目录取文件。</li>
+          <li>点顶栏左侧的文件夹按钮选歌所在的目录，或者把文件夹拖进窗口。</li>
+          <li>需要的话点「转换选项」调比特率、是否保留无损。</li>
+          <li>点「开始转换」，窗口右下角会显示进度；开了托盘常驻的话，转完还会发系统通知。</li>
+          <li>去 <code>output\mp3</code> 取文件。</li>
         </ol>
       </div>
     </div>
@@ -428,7 +436,7 @@
       <ul>
         <li>杀毒软件（360、火绒、Defender）拦截了 ffmpeg 写盘——加信任区；</li>
         <li>也可能是程序放在受管控的目录里————尝试挪到 D 盘或桌面这种普通位置再试试；</li>
-        <li>输出目录是只读的或者别的程序正占着文件。</li>
+        <li><code>output</code> 目录是只读的，或者别的程序正占着文件。</li>
       </ul>
     </details>
 
@@ -452,7 +460,7 @@
 
     <details>
       <summary>子文件夹里的歌会处理吗？</summary>
-      <p>会，递归扫描输入目录下所有层级的 <code>.mflac</code> / <code>.mgg</code>。</p>
+      <p>会，递归扫描所选文件夹下所有层级的 <code>.mflac</code> / <code>.mgg</code>。</p>
     </details>
 
     <details>
