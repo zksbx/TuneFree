@@ -15,7 +15,7 @@
 [⬇️ 下载最新版](https://github.com/zksbx/TuneFree/releases/latest) · [🌐 官网与使用帮助](https://zksbx.github.io/TuneFree/) · [☁️ 蓝奏云备用下载](https://wwbtj.lanzouc.com/b01d7csi8j)（提取码 `0211`）· 💬 `QQ` 群：1067975918 · [English](README.en.md)
 
 > 🍎 **macOS 版**：由 [Dora-z](https://github.com/Dora-z/TuneFree_Mac) **独立开发维护**
-
+> [Dora-z/TuneFree_Mac](https://github.com/Dora-z/TuneFree_Mac) 
 ---
 
 ## 它解决什么问题
