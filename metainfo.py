@@ -19,7 +19,8 @@ OGG_MAGIC = b"OggS"
 class AudioInfo:
     """一首歌的元信息。cover 为原始图片字节（可能为 None）。"""
 
-    __slots__ = ("kind", "duration", "sample_rate", "channels", "bits", "cover", "cover_mime")
+    __slots__ = ("kind", "duration", "sample_rate", "channels", "bits", "cover",
+                 "cover_mime", "title", "artist", "album")
 
     def __init__(self):
         self.kind = ""
@@ -29,6 +30,41 @@ class AudioInfo:
         self.bits = 0
         self.cover = b""
         self.cover_mime = ""
+        self.title = ""
+        self.artist = ""
+        self.album = ""
+
+
+def _comment_pairs(body: bytes):
+    """解析 Vorbis comment 载荷（FLAC 块 / Ogg 注释包共用），返回 [(key, value)]。"""
+    pairs = []
+    try:
+        (vendor_len,) = struct.unpack_from("<I", body, 0)
+        pos = 4 + vendor_len
+        (count,) = struct.unpack_from("<I", body, pos)
+        pos += 4
+        for _ in range(min(count, 512)):
+            (clen,) = struct.unpack_from("<I", body, pos)
+            pos += 4
+            entry = body[pos:pos + clen]
+            pos += clen
+            key, _, value = entry.partition(b"=")
+            pairs.append((key.decode("utf-8", "replace"),
+                          value.decode("utf-8", "replace")))
+    except Exception:
+        pass
+    return pairs
+
+
+def _apply_tag(info: AudioInfo, key: str, value: str):
+    """把 TITLE / ARTIST / ALBUM 这类常用标签收进 info。"""
+    name = (key or "").strip().upper()
+    if name in ("TITLE", "TIT2"):
+        info.title = info.title or value.strip()
+    elif name in ("ARTIST", "TPE1"):
+        info.artist = info.artist or value.strip()
+    elif name in ("ALBUM", "TALB"):
+        info.album = info.album or value.strip()
 
 
 def _parse_flac_picture(blk: bytes):
@@ -79,6 +115,9 @@ def _parse_flac(data: bytes) -> AudioInfo:
             samples = packed & 0xFFFFFFFFF
             if info.sample_rate:
                 info.duration = samples / float(info.sample_rate)
+        elif block_type == 4 and end <= total:
+            for key, value in _comment_pairs(data[body:end]):
+                _apply_tag(info, key, value)
         elif block_type == 6 and end <= total:
             pic = _parse_flac_picture(data[body:end])
             if pic and pic[1]:
@@ -166,18 +205,10 @@ def _parse_ogg(data: bytes) -> AudioInfo:
             body = comments[8:]
         else:
             return info
-        (vendor_len,) = struct.unpack_from("<I", body, 0)
-        pos = 4 + vendor_len
-        (count,) = struct.unpack_from("<I", body, pos)
-        pos += 4
         best = None
-        for _ in range(min(count, 512)):
-            (clen,) = struct.unpack_from("<I", body, pos)
-            pos += 4
-            entry = body[pos:pos + clen]
-            pos += clen
-            key, _, value = entry.partition(b"=")
-            if key.upper() == b"METADATA_BLOCK_PICTURE":
+        for key, value in _comment_pairs(body):
+            _apply_tag(info, key, value)
+            if key.upper() == "METADATA_BLOCK_PICTURE":
                 try:
                     raw = base64.b64decode(value)
                 except Exception:

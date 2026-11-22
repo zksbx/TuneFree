@@ -35,8 +35,9 @@ _TIMEOUT = 6.0
 
 # 搜索结果里出现这些词，说明是另一个版本，降权
 _BAD_WORDS = ("live", "演唱会", "伴奏", "片段", "dj", "翻唱", "remix", "纯音乐", "试听")
-# 文件名里常见的尾巴：_H / _SQ / (1) / 【...】
-_TAIL_NOISE = re.compile(r"[_\-\s]*(h|sq|hq|mp3|flac|mflac|mgg|\d+)$", re.I)
+# 拆开后的单侧清理：扩展名残留、重复下载的 (1) / _1
+_TAIL_EXT = re.compile(r"[_\-\s]*(mp3|flac|mflac|mgg)$", re.I)
+_TAIL_DUP = re.compile(r"(?:[_\s]\(\d+\)|[（]\d+[）]|[_\s]\d+)$")
 
 
 class Candidate:
@@ -84,25 +85,39 @@ def strip_quality_tail(text):
         out = cut.strip()
 
 
+def _clean_piece(text):
+    """拆开后的单侧清理：音质后缀、扩展名残留、重复下载的 (1)/_1。
+
+    不剥裸数字 ——「21」「Blink-182」这类歌名/歌手要原样保留。
+    """
+    out = strip_quality_tail(text)
+    out = _TAIL_EXT.sub("", out)
+    out = _TAIL_DUP.sub("", out)
+    return out.strip() or (text or "").strip()
+
+
 def split_name(stem, mode="title_artist"):
     """把文件名拆成 (歌名, 歌手)。
 
     mode: title_artist（歌名 - 歌手，默认）/ artist_title（歌手 - 歌名）/ title_only（整段都是歌名）
     """
     name = os.path.splitext(os.path.basename(stem))[0].strip()
-    name = _TAIL_NOISE.sub("", name)
     if mode == "title_only":
-        return strip_quality_tail(name), ""
+        return _clean_piece(name), ""
     for sep in (" - ", " – ", " — ", "-"):
-        if sep in name:
-            left, right = name.split(sep, 1)
-            # 两侧都要剥：音质尾巴经常挂在歌手名后面（「歌名 - 某某_L」）
-            left, right = strip_quality_tail(left.strip()), strip_quality_tail(right.strip())
-            if left and right:
-                if mode == "artist_title":
-                    return right, left
-                return left, right
-    return strip_quality_tail(name), ""
+        if sep not in name:
+            continue
+        left, right = (s.strip() for s in name.split(sep, 1))
+        # 裸连字符只在两边都不像纯数字时才算分隔符，「Blink-182」不该被拆开
+        if sep == "-" and (left.isdigit() or right.isdigit()):
+            continue
+        # 两侧都要清理：音质尾巴经常挂在歌手名后面（「歌名 - 某某_L」）
+        left, right = _clean_piece(left), _clean_piece(right)
+        if left and right:
+            if mode == "artist_title":
+                return right, left
+            return left, right
+    return _clean_piece(name), ""
 
 
 def _norm(text):
