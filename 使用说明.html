@@ -164,23 +164,23 @@
 <body>
     <div class="container">
         <h1>🎵 TuneFree</h1>
-        <div class="subtitle">把 QQ音乐下载的加密歌曲（<code>.mflac</code> / <code>.mgg</code>）变成任何播放器都能放的 MP3 · v3.1.2</div>
+        <div class="subtitle">把 QQ音乐下载的加密歌曲（<code>.mflac</code> / <code>.mgg</code>）还原成任何播放器都能放的 FLAC / OGG · v3.1.2</div>
 
-        <p><strong>TuneFree</strong> 在 QQ音乐进程里调用它自己的解密函数，把加密文件还原成正常的 FLAC / OGG，再用内置的 FFmpeg 转成 MP3。全程在你自己的电脑上完成，不上传任何文件。</p>
+        <p><strong>TuneFree</strong> 在 QQ音乐进程里调用它自己的解密函数，把加密文件还原成正常的 FLAC / OGG，不转码。全程在你自己的电脑上完成，不上传任何文件。</p>
 
-        <pre>.mflac / .mgg  ──解密──▶  .flac / .ogg  ──转码──▶  .mp3</pre>
+        <pre>.mflac  ──解密──▶  .flac
+.mgg    ──解密──▶  .ogg</pre>
 
         <h2>✨ 功能特点</h2>
         <ul>
             <li><span class="badge">批量解密</span> 自动递归子文件夹，一次处理整库。</li>
-            <li><span class="badge">顺手转码</span> 默认直接出 <code>320k</code> MP3，也可以在转换选项里保留解密出的无损文件。</li>
-            <li><span class="badge">看得清</span> 列表里每首歌都标着它现在的格式：没解密是 <code>MFLAC</code> / <code>MGG</code>，解密后是 <code>FLAC</code> / <code>OGG</code>，转好了再挂一个 <code>MP3</code>。</li>
-            <li><span class="badge">筛选</span> 顶部一排格式胶囊（全部 / 未解密 / MFLAC / MGG / FLAC / OGG / MP3），点一下就是筛选，计数实时更新；最右的「筛选」还能按歌手过滤。</li>
+            <li><span class="badge">看得清</span> 列表里每首歌都标着它现在的格式：没解密是 <code>MFLAC</code> / <code>MGG</code>，解密后是 <code>FLAC</code> / <code>OGG</code>。</li>
+            <li><span class="badge">筛选</span> 顶部一排格式胶囊（全部 / 未解密 / MFLAC / MGG / FLAC / OGG），点一下就是筛选，计数实时更新；最右的「筛选」还能按歌手过滤。</li>
             <li><span class="badge">能听</span> 双击列表里的歌就地试听，底部播放条带封面和两行歌词；点封面或「沉浸」进整页播放页，右边是中英双语歌词。</li>
             <li><span class="badge">选择模式</span> 点「选择」后可以按文件勾选，批量删除源文件或输出文件。</li>
             <li><span class="badge">好看</span> 浅色 / 深色两套内置配色，另可自存三套自定义配色；主界面字号、歌词字号都能调。</li>
-            <li><span class="badge">自动更新</span> 启动时检查新版本，同意后原地覆盖升级，配色、字号、转换选项全部保留。</li>
-            <li><span class="badge">后台</span> 关窗口时收进托盘、转换继续在后台跑、转完发系统通知，都在设置 → 行为里开；迷你播放器和全局媒体键也在那一页。</li>
+            <li><span class="badge">自动更新</span> 启动时检查新版本，同意后原地覆盖升级，配色、字号、解密选项全部保留。</li>
+            <li><span class="badge">后台</span> 关窗口时收进托盘、解密继续在后台跑、解完发系统通知，都在设置 → 行为里开；迷你播放器和全局媒体键也在那一页。</li>
         </ul>
 
         <h2>📋 系统要求</h2>
@@ -198,34 +198,32 @@
         <ol>
             <li><strong>打开 QQ音乐并登录</strong>，放在后台就行。</li>
             <li><strong>双击 <code>TuneFree.exe</code></strong>，点顶栏左侧的文件夹按钮选存放 <code>.mflac</code> / <code>.mgg</code> 的目录（也可以直接把文件夹拖进窗口）。</li>
-            <li><strong>点「开始转换」</strong>，右下角会浮出进度条；跑完去 <code>output\mp3</code> 拿文件。</li>
+            <li><strong>点「开始解密」</strong>，右下角会浮出进度条；跑完去 <code>output\flac</code> / <code>output\ogg</code> 拿文件。</li>
         </ol>
 
         <h2>🖥️ 界面说明</h2>
         <table>
             <thead><tr><th>区域</th><th>作用</th></tr></thead>
             <tbody>
-                <tr><td>顶栏</td><td>TuneFree 名称、文件夹按钮、搜索框、连接状态、设置、Star、支持作者、转换选项、开始转换</td></tr>
-                <tr><td>曲库卡片</td><td>标题、格式胶囊（全部 / 未解密 / MFLAC / MGG / FLAC / OGG / MP3）、工具行（排序、选择）、歌曲列表</td></tr>
+                <tr><td>顶栏</td><td>TuneFree 名称、文件夹按钮、搜索框、连接状态、设置、Star、支持作者、解密选项、开始解密</td></tr>
+                <tr><td>曲库卡片</td><td>标题、格式胶囊（全部 / 未解密 / MFLAC / MGG / FLAC / OGG）、工具行（排序、选择）、歌曲列表</td></tr>
                 <tr><td>列表</td><td>序号 / 播放键、封面、歌名与歌手、格式胶囊、大小、时长、行尾「⋯」；双击试听，工具行右侧可切排序，右键或「⋯」删行</td></tr>
-                <tr><td>右下角浮窗</td><td>转换进度，透明穿透，不会挡住你的鼠标操作</td></tr>
+                <tr><td>右下角浮窗</td><td>解密进度，透明穿透，不会挡住你的鼠标操作</td></tr>
                 <tr><td>播放条</td><td>封面（点开沉浸页）、曲名、上一首 / 播放 / 下一首、时间与进度、格式切换、音量、迷你、沉浸</td></tr>
             </tbody>
         </table>
 
-        <h2>⚙️ 转换选项</h2>
-        <p>点顶栏的「转换选项」，这些设置对下一次点「开始转换」生效：</p>
+        <h2>⚙️ 解密选项</h2>
+        <p>点顶栏的「解密选项」，这些设置对下一次点「开始解密」生效：</p>
         <ul>
-            <li><strong>MP3 品质</strong>：320k（默认）/ 256k / 192k / 128k。</li>
-            <li><strong>保留解密后的 FLAC</strong>：勾上就同时留下 <code>output\flac</code>，播放时还能在播放条上切换音源。</li>
-            <li><strong>重新生成已存在的 MP3</strong>：默认跳过已转好的歌，勾上就全部重来一遍。</li>
+            <li><strong>重新解密已存在的文件</strong>：默认跳过已经解出来的，勾上就全部重来一遍。</li>
         </ul>
 
         <h2>📁 输出结构</h2>
         <pre>你选中的歌曲文件夹
 └─ output
-   ├─ mp3    转换好的 MP3（默认只出这里）
-   └─ flac   解密出的 FLAC / OGG（勾选「保留」才有）</pre>
+   ├─ flac   .mflac 解密出的 FLAC
+   └─ ogg    .mgg 解密出的 OGG</pre>
 
         <h2>🔤 文件名格式</h2>
         <p>程序按「歌名 - 歌手」拆名字。如果你下载的文件是「歌手 - 歌名」或者只有歌名，去设置里把「文件名格式」改成对应那一档，列表里的歌名和歌手会立刻重算。</p>
@@ -248,7 +246,7 @@
         </div>
         <div class="card">
             <h3>💾 磁盘空间</h3>
-            <p>默认只出 MP3，约为原文件的三分之一到五分之一。勾了「保留解密后的 FLAC」就要再留一份和原文件差不多大的空间。</p>
+            <p>解密出来的文件和原文件差不多大（FLAC）或小一些（OGG），没有转码这一步，所以不会额外膨胀。</p>
         </div>
         <div class="card">
             <h3>📄 版权声明</h3>
@@ -258,10 +256,9 @@
         <h2>❓ 常见问题</h2>
         <ul>
             <li><strong>Q：顶栏一直显示「未连接」。</strong><br>A：先确认 QQ音乐开着并已登录，再点那个胶囊重连。QQ音乐刚更新过也可能要等 TuneFree 适配。</li>
-            <li><strong>Q：双击一首歌提示「这个使不得 请转换后再试」。</strong><br>A：那首歌还没解密/没转出 MP3，先点「开始转换」。提示是浮窗，几秒后自己消失。</li>
+            <li><strong>Q：双击一首歌提示「这个使不得 请先解密再试」。</strong><br>A：那首歌还没解密，先点「开始解密」。提示是浮窗，几秒后自己消失。</li>
             <li><strong>Q：解密报 <code>invalid size</code> 或提示版本不匹配。</strong><br>A：QQ音乐更新后改了内部函数名。把 QQ音乐降级到可用版本，或等 TuneFree 适配新版。</li>
-            <li><strong>Q：解密成功但转 MP3 全失败。</strong><br>A：多半是安全软件拦住了 <code>ffmpeg.exe</code> 写文件。完整原因会写在完成弹窗里，把 TuneFree 目录加进信任区再试。</li>
-            <li><strong>Q：有少数歌死活转不出来。</strong><br>A：先看音质是不是 Hi-Res / 臻品母带 / 杜比全景声——这几档不支持。是标准 / HQ / SQ 的话，先在 QQ音乐里播放一遍再试。</li>
+            <li><strong>Q：有少数歌死活解不出来。</strong><br>A：先看音质是不是 Hi-Res / 臻品母带 / 杜比全景声——这几档不支持。是标准 / HQ / SQ 的话，先在 QQ音乐里播放一遍再试。</li>
             <li><strong>Q：胶囊上 MGG 是 0，但文件夹里明明有。</strong><br>A：MGG / MFLAC 这两个胶囊统计的是磁盘上的文件（不管解没解密）；如果一个都没有，说明它们已经被整理到别处了。</li>
             <li><strong>Q：界面字太小 / 太大。</strong><br>A：设置 → 外观 → 字号，主界面和歌词可以分开调。</li>
         </ul>
@@ -273,18 +270,14 @@
             <tbody>
                 <tr><td><code>-i</code> / <code>--input</code></td><td>输入目录，默认当前目录</td><td><code>TuneFree.exe --cli -i "D:\下载"</code></td></tr>
                 <tr><td><code>-o</code> / <code>--output</code></td><td>输出根目录，默认 <code>./output</code></td><td><code>TuneFree.exe --cli -o "E:\音乐"</code></td></tr>
-                <tr><td><code>--mp3-dir</code> / <code>--flac-dir</code></td><td>分别指定 MP3 / FLAC 输出位置</td><td><code>--flac-dir "D:\无损"</code></td></tr>
-                <tr><td><code>-b</code> / <code>--bitrate</code></td><td>MP3 比特率，默认 <code>192k</code></td><td><code>-b 320k</code></td></tr>
-                <tr><td><code>--keep-flac</code></td><td>保留解密出的 FLAC / OGG</td><td><code>--keep-flac</code></td></tr>
-                <tr><td><code>--no-mp3</code></td><td>只出无损，不转 MP3</td><td><code>--no-mp3</code></td></tr>
-                <tr><td><code>--force</code></td><td>已存在的 MP3 也重新生成</td><td><code>--force</code></td></tr>
+                <tr><td><code>--flac-dir</code> / <code>--ogg-dir</code></td><td>分别指定 FLAC / OGG 输出位置</td><td><code>--flac-dir "D:\无损"</code></td></tr>
+                <tr><td><code>--force</code></td><td>已经解出来的文件也重新解密</td><td><code>--force</code></td></tr>
             </tbody>
         </table>
 
         <h2>🙏 鸣谢</h2>
         <ul>
             <li><a href="https://frida.re/" target="_blank" rel="noopener">Frida</a>：动态注入框架，解密靠它跟 QQMusic 进程对话。</li>
-            <li><a href="https://ffmpeg.org/" target="_blank" rel="noopener">FFmpeg</a>：转码。</li>
             <li><a href="https://github.com/ericjuice/music-decryptor" target="_blank" rel="noopener">music-decryptor</a>：<code>hook_qq_music.js</code> 的起点。</li>
             <li><a href="https://pyinstaller.org/" target="_blank" rel="noopener">PyInstaller</a>：打包。</li>
             <li><strong>Unlock Music 社区</strong>：加密格式的解析经验。</li>
