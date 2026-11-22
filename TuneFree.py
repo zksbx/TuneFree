@@ -5392,7 +5392,8 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
     # ================= 文件名格式 =================
     def _apply_name_format(self, tracks):
         for t in tracks or []:
-            if getattr(t, "is_out", False):
+            if getattr(t, "is_out", False) or getattr(t, "tag_meta", False):
+                # 标签里已经有歌名/歌手，别再按文件名覆盖
                 continue
             title, artist = split_name_by_format(t.name, self.name_format)
             t.title = title
