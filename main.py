@@ -50,33 +50,43 @@ DEFAULT_BITRATE = "320k"
 
 
 # -------------------- 强制 UTF-8 输出 --------------------
-def _reopen_fd(fd, name):
-    """把第 fd 号文件描述符包成 UTF-8 文本流；fd 不可用返回 None。"""
+def _usable_stream(stream, mode="w"):
+    """把已有流包成 UTF-8，并确认真的写得进去；不能写就退回空设备。
+
+    打包成窗口程序（--noconsole）时 sys.stdout 常常是 None，或者指向一个
+    已经失效的句柄。后者会在解释器退出时刷新失败，让进程以退出码 120 结束，
+    所以这里先写一个空串试一下，失败就换成 os.devnull。
+    """
+    if stream is None:
+        return open(os.devnull, mode, encoding="utf-8", errors="replace")
     try:
-        return open(fd, mode="w", encoding="utf-8", errors="replace", closefd=False)
+        fd = stream.fileno()
+    except (OSError, ValueError, AttributeError):
+        fd = None
+    if fd is not None:
+        try:
+            wrapped = open(fd, mode, encoding="utf-8", errors="replace", closefd=False)
+            wrapped.write("")
+            wrapped.flush()
+            return wrapped
+        except (OSError, ValueError):
+            pass
+    try:
+        stream.write("")
+        stream.flush()
+        return stream
     except (OSError, ValueError):
-        return None
+        return open(os.devnull, mode, encoding="utf-8", errors="replace")
 
 
 def _force_utf8_stdio():
     """窗口模式打包（--noconsole）时 sys.stdout 常常是 None。
 
-    这时 print() 会静默丢弃输出，连 @@PROGRESS 进度协议也发不出去，
-    界面上的进度条就永远不动。所以这里先试着按 fd 重新打开，拿不到再退回另一个流。
+    print() 会静默丢弃输出，连 @@PROGRESS 进度协议也发不出去。这里保证
+    stdout / stderr 一定指向一个写得进去的 UTF-8 流；没有控制台就写空设备。
     """
-    if sys.stdout is None:
-        sys.stdout = _reopen_fd(1, "stdout") or sys.stderr or open(os.devnull, "w")
-    if sys.stderr is None:
-        sys.stderr = _reopen_fd(2, "stderr") or sys.stdout or open(os.devnull, "w")
-
-    for name in ("stdout", "stderr"):
-        stream = getattr(sys, name, None)
-        if stream is None:
-            continue
-        try:
-            setattr(sys, name, open(stream.fileno(), mode="w", encoding="utf-8", errors="replace"))
-        except (OSError, ValueError, AttributeError):
-            pass
+    sys.stdout = _usable_stream(getattr(sys, "stdout", None))
+    sys.stderr = _usable_stream(getattr(sys, "stderr", None)) or sys.stdout
 
 
 if sys.platform == "win32":
@@ -114,9 +124,17 @@ def ffmpeg_path():
     return resource_path("ffmpeg.exe")
 
 
+def _safe_print(line):
+    """往控制台写一行；打包成窗口程序后可能没有可用的 stdout，写不出去就跳过。"""
+    try:
+        print(line, flush=True)
+    except (OSError, ValueError):
+        pass
+
+
 def emit_progress(phase, done, total):
     """进度协议：界面认 `@@PROGRESS 解密 3/10` 这一行（不写进日志）。"""
-    print("@@PROGRESS %s %d/%d" % (phase, done, total), flush=True)
+    _safe_print("@@PROGRESS %s %d/%d" % (phase, done, total))
 
 
 # -------------------- 任务执行器 --------------------
@@ -433,15 +451,15 @@ def _print_event(kind, payload):
     """命令行模式把事件打到控制台。"""
     if kind == "log":
         prefix = "错误" if payload.get("level") == "error" else "信息"
-        print("[%s] %s" % (prefix, payload.get("message", "")), flush=True)
+        _safe_print("[%s] %s" % (prefix, payload.get("message", "")))
     elif kind == "item":
         track = payload.get("track")
         state = payload.get("state")
         if state in ("done", "fail", "skip") and track is not None:
-            print("@@ITEM %s %s %s" % (state, track.name, payload.get("message", "")), flush=True)
+            _safe_print("@@ITEM %s %s %s" % (state, track.name, payload.get("message", "")))
     elif kind == "conn":
         if not payload.get("ok"):
-            print("[错误] %s" % payload.get("message", ""), flush=True)
+            _safe_print("[错误] %s" % payload.get("message", ""))
 
 
 def main(argv=None):
