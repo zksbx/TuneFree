@@ -62,7 +62,6 @@ def collate(text):
 import locale
 import logging
 import logging.handlers
-import metainfo
 import tempfile
 
 import lyrics
@@ -205,7 +204,7 @@ def explain_exit_code(code):
     except (TypeError, ValueError):
         return str(code or "").strip()
     if code in (4294967283, -13):
-        return ("拒绝访问(EACCES)。常见原因：杀毒软件拦下了 ffmpeg.exe，或输出的 .mp3 正被"
+        return ("拒绝访问(EACCES)。常见原因：杀毒软件拦下了程序，或输出文件正被"
                 "播放器/网盘同步占用。把 TuneFree 整个文件夹加入杀软白名单再试一次。")
     if code in (4294967295, -1):
         return "后端异常退出，通常是 QQ音乐版本不匹配或注入被拦截，请看日志里的报错行。"
@@ -1280,7 +1279,7 @@ PALETTE_BASE = {
 PALETTE = {name: dict(colors) for name, colors in PALETTE_BASE.items()}
 
 STATUS_TEXT = {
-    "pending": "待转换", "ready": "待转换", "working": "处理中",
+    "pending": "待解密", "ready": "待解密", "working": "处理中",
     "done": "已完成", "failed": "失败", "skipped": "已跳过",
 }
 
@@ -1612,49 +1611,38 @@ def _round_outline(painter, rect, radius, color, width=1.0):
     painter.drawRoundedRect(rect, radius, radius)
 
 
-def format_pills(track, view="all", select_mode=False, has_mp3=False, has_flac=False,
-                 palette=None):
+def format_pills(track, view="all", select_mode=False, has_lossless=False, palette=None):
     """这一行「格式」列该显示哪些胶囊。
 
-    三个来源分开说：源文件是什么壳（mflac / mgg）、解出来是什么音频（flac / ogg）、
-    有没有转成 MP3。只要磁盘上还在就亮出来 —— 解密不会删源文件，所以转完的歌
-    依然该看得见 MFLAC，而不是被 FLAC 顶掉。
+    两个来源分开说：源文件是什么壳（mflac / mgg）、解出来是什么音频（flac / ogg）。
+    解密不会删源文件，所以解完的歌依然该看得见 MFLAC，而不是被 FLAC 顶掉。
     """
     c = palette or PALETTE["light"]
     src_ext = (track.path.rsplit(".", 1)[-1] or "").lower()
     if track.is_out:
         # 选择模式下一行就是一个文件，输出行只说自己是什么
-        if getattr(track, "out_kind", "") == "flac":
-            kind = track.kind if track.kind in ("flac", "ogg") else "flac"
-            soft, ink = ((c["ok_soft"], c["ok"]) if kind == "flac"
-                         else (c["ok_soft"], c["ok"]))
-            return [(kind.upper(), soft, ink)]
-        return [("MP3", c["accent_soft"], c["accent"])]
-    if src_ext == "mp3":
-        return [("MP3", c["accent_soft"], c["accent"])]
+        kind = getattr(track, "out_kind", "") or src_ext
+        kind = kind if kind in ("flac", "ogg") else "flac"
+        return [(kind.upper(), c["ok_soft"], c["ok"])]
 
     pills = []
     if src_ext in ("mflac", "mgg"):
         pills.append((src_ext.upper(), c["warn_soft"], c["warn"]))
-    if has_flac and not select_mode:
-        # 选择模式里无损文件自己占一行，源文件行不再重复挂这个胶囊
+    if has_lossless and not select_mode:
+        # 选择模式里解出来的文件自己占一行，源文件行不再重复挂这个胶囊
         kind = track.kind if track.kind in ("flac", "ogg") else \
             ("flac" if src_ext == "mflac" else "ogg")
         pills.append((kind.upper(), c["ok_soft"], c["ok"]))
-    if has_mp3 and not select_mode:
-        # 选择模式下 MP3 自己就是一行，源文件行不再重复同一个胶囊
-        pills.append(("MP3", c["accent_soft"], c["accent"]))
     if not pills:
         pills.append((src_ext.upper() or "?", c["chip"], c["sub"]))
 
     # 切到某个具体格式后，这一列只留该格式的胶囊
     key = (view or "all").lower()
-    if key in ("mflac", "mgg", "flac", "ogg", "mp3"):
+    if key in ("mflac", "mgg", "flac", "ogg"):
         only = [pill for pill in pills if pill[0].lower() == key]
         if not only:
             soft, ink = ((c["warn_soft"], c["warn"]) if key in ("mflac", "mgg")
-                         else ((c["ok_soft"], c["ok"]) if key in ("flac", "ogg")
-                               else (c["accent_soft"], c["accent"])))
+                         else (c["ok_soft"], c["ok"]))
             only = [(key.upper(), soft, ink)]
         return only
     if key == "enc":
@@ -1858,8 +1846,7 @@ class TrackDelegate(QStyledItemDelegate):
         # 格式胶囊
         view = getattr(self.win, "filter_kind", "all")
         select_mode = getattr(self.win, "select_mode", False)
-        pills = format_pills(track, view, select_mode, self.win.has_mp3(track),
-                             self.win.has_flac(track), c)
+        pills = format_pills(track, view, select_mode, self.win.has_lossless(track), c)
         font.setPixelSize(max(8, int(round(10 * scale))))
         font.setWeight(QFont.DemiBold)
         painter.setFont(font)
@@ -1884,9 +1871,9 @@ class TrackDelegate(QStyledItemDelegate):
         fkey = getattr(self.win, "filter_kind", "all")
         files = self.win.format_files(track)
         if track.is_out:
-            # 选择模式里的无损 / MP3 行本身就是单个文件，不能加「共」
+            # 选择模式里的 FLAC / OGG 行本身就是单个文件，不能加「共」
             size_text = format_size(track.output_size or track.size or 0)
-        elif fkey in ("mflac", "mgg", "flac", "ogg", "mp3"):
+        elif fkey in ("mflac", "mgg", "flac", "ogg"):
             matched = [item for item in files if item[0] == fkey]
             size_text = format_size(matched[0][2] if matched else 0)
         else:
@@ -1900,7 +1887,7 @@ class TrackDelegate(QStyledItemDelegate):
         # 转换时临时露出的状态文字，就在胶囊右边
         if show_status:
             key = track.status if track.status in STATUS_STYLE else "pending"
-            text = STATUS_TEXT.get(key, "待转换")
+            text = STATUS_TEXT.get(key, "待解密")
             color = {"done": c["ok"], "failed": c["fail"], "working": c["accent"],
                      "skipped": c["sub"]}.get(key, c["sub2"])
             font.setPixelSize(max(9, int(round(11.5 * scale))))
@@ -3011,7 +2998,7 @@ class LyricPanel(QWidget):
         path.addRoundedRect(fr, 8, 8)
         p.setPen(Qt.NoPen)
         p.fillPath(path, QColor(255, 255, 255, 22))
-        label = "MP3"
+        label = "格式"
         try:
             cur = (win.fmt_btn.text() or "").replace("\u25be", "").strip()
             if cur:
@@ -3388,7 +3375,7 @@ class ProgressToast(QFrame):
         self.done = int(done or 0)
         self.total = int(total or 0)
         self.ratio = (float(self.done) / self.total) if self.total else 0.0
-        self.title = ("正在转换 · %s" % self.phase) if self.phase else "正在转换"
+        self.title = ("正在解密 · %s" % self.phase) if self.phase else "正在解密"
         if note:
             self.note = note
         self._hide_timer.stop()
@@ -3413,7 +3400,7 @@ class ProgressToast(QFrame):
         self._skip = int(skip or 0)
         self._elapsed = float(elapsed or 0)
         self.ratio = 1.0
-        self.title = "转换完成" if self._fail == 0 else "转换结束"
+        self.title = "解密完成" if self._fail == 0 else "解密结束"
         self.note = "成功 %d · 失败 %d · 跳过 %d · 用时 %s" % (
             self.ok_count, self._fail, self._skip, format_time(self._elapsed))
         if not self.isVisible():
@@ -3802,8 +3789,8 @@ class SettingsDialog(QDialog):
         card, lay = self._card("行为", "窗口关闭方式、后台运行、系统通知与媒体键的统一设置。")
         self.behavior_checks = {}
         rows = (
-            ("tray", "关闭主窗口时收进系统托盘，转换任务继续在后台执行"),
-            ("notice", "转换完成后发送系统通知（窗口处于前台时不发送）"),
+            ("tray", "关闭主窗口时收进系统托盘，解密任务继续在后台执行"),
+            ("notice", "解密完成后发送系统通知（窗口处于前台时不发送）"),
             ("hotkeys", "启用全局媒体键：播放 / 暂停、上一首、下一首"),
             ("mini", "启用迷你播放器窗口（显示歌词与播放控制）"),
         )
@@ -4284,7 +4271,7 @@ class TuneFreeWindow(QMainWindow):
 
     def restart_scan(self):
         if self._runner is not None:
-            self.notify("正在转换，等这一轮跑完再重新扫描")
+            self.notify("正在解密，等这一轮跑完再重新扫描")
             return
         if self.input_dir and os.path.isdir(self.input_dir):
             self.start_scan()
@@ -4370,7 +4357,7 @@ class TuneFreeWindow(QMainWindow):
         if self.isVisible() and not self.isMinimized() and self.isActiveWindow():
             return          # 人就在窗口前面，完成对话框已经说过了
         text = "成功 %d · 失败 %d · 跳过 %d · 用时 %s" % (ok, fail, skip, format_time(elapsed))
-        self.notify_system("转换完成", text)
+        self.notify_system("解密完成", text)
 
     # ---------- 拖拽导入文件夹 ----------
     @staticmethod
@@ -4404,7 +4391,7 @@ class TuneFreeWindow(QMainWindow):
             return
         event.acceptProposedAction()
         if self._runner is not None:
-            self.notify("正在转换，等这一轮跑完再换文件夹")
+            self.notify("正在解密，等这一轮跑完再换文件夹")
             return
         self.set_input_dir(folder)
 
@@ -4626,7 +4613,7 @@ class TuneFreeWindow(QMainWindow):
         self.folder_btn.setMaximumWidth(330)
         self.folder_btn.setMinimumWidth(180)
         self.folder_btn.setCursor(Qt.PointingHandCursor)
-        self.folder_btn.setToolTip("选一个文件夹，程序会列出里面所有 .mflac / .mgg，转成 MP3")
+        self.folder_btn.setToolTip("选一个文件夹，程序会列出里面所有 .mflac / .mgg，解密成 FLAC / OGG")
         self.folder_btn.clicked.connect(self.choose_folder)
         lay.addWidget(self.folder_btn)
 
@@ -4665,15 +4652,15 @@ class TuneFreeWindow(QMainWindow):
         self.support_btn.clicked.connect(self.open_support)
         lay.addWidget(self.support_btn)
 
-        self.opt_btn = QPushButton("转换选项")
+        self.opt_btn = QPushButton("解密选项")
         self.opt_btn.setObjectName("pillBtn")
         self.opt_btn.setFixedHeight(36)
         self.opt_btn.setCursor(Qt.PointingHandCursor)
-        self.opt_btn.setToolTip("MP3 品质、是否保留中间文件")
+        self.opt_btn.setToolTip("是否自动补封面、是否重新解密")
         self.opt_btn.clicked.connect(self.show_options)
         lay.addWidget(self.opt_btn)
 
-        self.start_btn = QPushButton("开始转换")
+        self.start_btn = QPushButton("开始解密")
         self.start_btn.setObjectName("startBtn")
         self.start_btn.setFixedHeight(36)
         self.start_btn.setMinimumWidth(126)
@@ -4729,7 +4716,6 @@ class TuneFreeWindow(QMainWindow):
         add("sep2", "", "sep")
         add("flac", "FLAC")
         add("ogg", "OGG")
-        add("mp3", "MP3")
         lay.addStretch(1)
         self.filter_chip = add("filter", "筛选", "filter")
         return box
@@ -4793,10 +4779,10 @@ class TuneFreeWindow(QMainWindow):
         lay.setContentsMargins(16, 14, 16, 14)
         lay.setSpacing(8)
 
-        title = QLabel("转换选项")
+        title = QLabel("解密选项")
         title.setObjectName("optTitle")
         lay.addWidget(title)
-        hint = QLabel("这些设置对下一次点「开始转换」生效")
+        hint = QLabel("这些设置对下一次点「开始解密」生效")
         hint.setObjectName("optHint")
         hint.setWordWrap(True)
         lay.addWidget(hint)
@@ -4806,29 +4792,11 @@ class TuneFreeWindow(QMainWindow):
         line.setFixedHeight(1)
         lay.addWidget(line)
 
-        sub = QLabel("MP3 品质")
-        sub.setObjectName("fieldLabel")
-        lay.addWidget(sub)
-
-        self.rb_320 = QRadioButton("320 kbps · 高品质")
-        self.rb_256 = QRadioButton("256 kbps")
-        self.rb_192 = QRadioButton("192 kbps")
-        self.rb_128 = QRadioButton("128 kbps · 体积小")
-        self.rb_320.setChecked(True)
-        for rb in (self.rb_320, self.rb_256, self.rb_192, self.rb_128):
-            rb.toggled.connect(self.on_options_changed)
-            lay.addWidget(rb)
-
-        line2 = QFrame()
-        line2.setObjectName("divider")
-        line2.setFixedHeight(1)
-        lay.addWidget(line2)
-
-        self.cb_keep_flac = QCheckBox("保留解密后的 FLAC")
-        self.cb_keep_flac.setToolTip("不勾就只留 MP3，勾上会同时留下中间文件")
-        self.cb_force = QCheckBox("重新生成已存在的 MP3")
-        self.cb_force.setToolTip("默认跳过已经转好的，勾上则覆盖重转")
-        for cb in (self.cb_keep_flac, self.cb_force):
+        self.cb_cover = QCheckBox("没有封面时自动补上")
+        self.cb_cover.setToolTip("从 QQ 音乐的专辑图缓存里挑最大的一张写进文件")
+        self.cb_force = QCheckBox("重新解密已存在的文件")
+        self.cb_force.setToolTip("默认跳过已经解出来的，勾上则覆盖重解")
+        for cb in (self.cb_cover, self.cb_force):
             cb.stateChanged.connect(self.on_options_changed)
             lay.addWidget(cb)
 
@@ -4846,18 +4814,9 @@ class TuneFreeWindow(QMainWindow):
         panel.show()
         panel.raise_()
 
-    def current_bitrate(self):
-        for rb in (getattr(self, "rb_320", None), getattr(self, "rb_256", None),
-                   getattr(self, "rb_192", None), getattr(self, "rb_128", None)):
-            if rb is not None and rb.isChecked():
-                digits = "".join(ch for ch in rb.text() if ch.isdigit())
-                return (digits or "320") + "k"
-        return "320k"
-
     def on_options_changed(self, *_args):
         try:
-            self.settings.setValue("ui/bitrate", self.current_bitrate())
-            self.settings.setValue("ui/keep_flac", "1" if self.cb_keep_flac.isChecked() else "0")
+            self.settings.setValue("ui/cover", "1" if self.cb_cover.isChecked() else "0")
             self.settings.setValue("ui/force", "1" if self.cb_force.isChecked() else "0")
         except Exception:
             pass
@@ -4962,7 +4921,7 @@ class TuneFreeWindow(QMainWindow):
         ex.setContentsMargins(0, 0, 0, 0)
         ex.setSpacing(8)
 
-        self.fmt_btn = QPushButton("MP3 \u25be")
+        self.fmt_btn = QPushButton("格式 \u25be")
         self.fmt_btn.setObjectName("fmtBtn")
         self.fmt_btn.setFixedHeight(28)
         self.fmt_btn.setCursor(Qt.PointingHandCursor)
@@ -5282,12 +5241,7 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         valid = [k for k, _ in NAME_FORMATS]
         self.name_format = mode if mode in valid else valid[0]
 
-        bitrate = str(s.value("ui/bitrate", "320k")).strip().lower()
-        rb_map = {"320k": self.rb_320, "256k": self.rb_256,
-                  "192k": self.rb_192, "128k": self.rb_128}
-        picked = rb_map.get(bitrate, self.rb_320)
-        picked.setChecked(True)
-        self.cb_keep_flac.setChecked(str(s.value("ui/keep_flac", "0")) in ("1", "true", "True"))
+        self.cb_cover.setChecked(str(s.value("ui/cover", "1")) in ("1", "true", "True"))
         self.cb_force.setChecked(str(s.value("ui/force", "0")) in ("1", "true", "True"))
 
         # 第 11 节的行为开关：托盘常驻、完成通知、全局媒体键、迷你播放器
@@ -5310,8 +5264,7 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         s.setValue("ui/dark", "1" if self.is_dark else "0")
         s.setValue("ui/font_scale", self.font_scale)
         s.setValue("ui/lyric_font_scale", self.lyric_font_scale)
-        s.setValue("ui/bitrate", self.current_bitrate())
-        s.setValue("ui/keep_flac", "1" if self.cb_keep_flac.isChecked() else "0")
+        s.setValue("ui/cover", "1" if self.cb_cover.isChecked() else "0")
         s.setValue("ui/force", "1" if self.cb_force.isChecked() else "0")
         s.setValue("ui/last_input", self.input_dir)
         s.setValue("ui/name_format", self.name_format)
@@ -5534,21 +5487,17 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
             return ""
 
     def mark_existing_outputs(self):
-        """之前已经转好的 MP3 直接认出来：状态显示「已完成」，也能直接播放。"""
-        folder = os.path.join(self.input_dir or "", "output", "mp3")
-        if not self.input_dir or not os.path.isdir(folder):
+        """之前已经解出来的文件直接认出来：状态显示「已完成」，也能直接播放。"""
+        if not self.input_dir:
             return
         for track in self.tracks:
-            stem = Path(track.path).stem
-            mp3 = os.path.join(folder, stem + ".mp3")
-            if os.path.exists(mp3):
-                track.output = mp3
+            path = self.lossless_path(track)
+            if path and os.path.isfile(path):
+                track.output = path
                 try:
-                    track.output_size = os.path.getsize(mp3)
+                    track.output_size = os.path.getsize(path)
                 except OSError:
                     track.output_size = 0
-                if not track.duration:
-                    track.duration = metainfo.mp3_duration(mp3)
                 if track.status in ("pending", "ready"):
                     track.status = "done"
                     if not track.message:
@@ -5595,27 +5544,31 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         threading.Thread(target=work, daemon=True).start()
 
     # ================= 过滤 / 排序 =================
-    @staticmethod
-    def has_mp3(track):
-        """这首歌有没有已经转出来的 MP3。"""
-        return bool(track.output) and track.output.lower().endswith(".mp3") \
-            and os.path.isfile(track.output)
+    def has_lossless(self, track):
+        """这首歌解出来的 FLAC / OGG 还在不在。"""
+        path = track.output or self.lossless_path(track)
+        return bool(path) and path.lower().endswith((".flac", ".ogg")) \
+            and os.path.isfile(path)
 
     def lossless_path(self, track):
-        """解密保留下来的无损文件该在哪 —— 算不出来就返回空串。"""
+        """解密产物该在哪 —— 算不出来就返回空串。
+
+        .mflac 解到 output/flac，.mgg 解到 output/ogg，互不混放。
+        """
         if track.is_out or not track.plain_ext:
             return ""
         try:
             stem = Path(track.path).stem
-            folder = os.path.join(self.input_dir or "", "output", "flac")
+            folder = os.path.join(self.input_dir or "", "output",
+                                  "ogg" if track.plain_ext == ".ogg" else "flac")
             return os.path.join(folder, stem + track.plain_ext)
         except (OSError, ValueError):
             return ""
 
     def has_flac(self, track):
-        """解出来的无损文件还在不在 —— 直接看磁盘，不信 status。
+        """解出来的文件还在不在 —— 直接看磁盘，不信 status。
 
-        run() 里勾了「保留 FLAC」才会留下它，没勾的话解完就删，这一格自然不亮。
+        解密产物现在一律保留，所以只要 output 目录里那份文件在，这一格就亮。
         """
         path = self.lossless_path(track)
         if not path:
@@ -5661,18 +5614,12 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
             except OSError:
                 inner_size = 0
             files.append((inner or "flac", lp, inner_size))
-        if self.has_mp3(track):
-            try:
-                mp3_size = os.path.getsize(track.output)
-            except OSError:
-                mp3_size = track.output_size or 0
-            files.append(("mp3", track.output, mp3_size))
         return files
 
     def context_file(self, track):
         """右键「在文件夹中显示」该跳到哪个文件。"""
         key = self.filter_kind
-        if key in ("mflac", "mgg", "flac", "ogg", "mp3"):
+        if key in ("mflac", "mgg", "flac", "ogg"):
             for ext, path, _size in self.format_files(track):
                 if ext == key:
                     return path
@@ -5700,13 +5647,8 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         rows = self.base_rows()
 
         kind = self.filter_kind
-        if kind == "mp3":
-            if self.select_mode:
-                rows = [t for t in rows if t.is_out and t.out_kind == "mp3"]
-            else:
-                rows = [t for t in rows if self.has_mp3(t)]
-        elif kind == "enc":
-            # 这一项回答「目录里有几首加密源文件」。解密不删源文件，所以转完也
+        if kind == "enc":
+            # 这一项回答「目录里有几首加密源文件」。解密不删源文件，所以解完也
             # 不该从这儿消失 —— 否则父项数字对不上 mflac + mgg 的和
             rows = [t for t in rows if not t.is_out]
         elif kind in ("mflac", "mgg"):
@@ -5716,11 +5658,10 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
                     and t.path.lower().endswith("." + kind)]
         elif kind in ("flac", "ogg"):
             if self.select_mode:
-                # 一行一个文件，这一栏只列真的躺在 output\flac 里的
-                rows = [t for t in rows if t.is_out and t.out_kind == "flac"
-                        and t.kind == kind]
+                # 一行一个文件，这一栏只列真的躺在 output\flac / output\ogg 里的
+                rows = [t for t in rows if t.is_out and t.out_kind == kind]
             else:
-                # 只收已经转好的 —— 还躺在 mflac / mgg 里的歌归「未解密」
+                # 只收已经解出来的 —— 还躺在 mflac / mgg 里的歌归「未解密」
                 rows = [t for t in rows if not t.is_out and t.kind == kind
                         and self.is_converted(t)]
         if self.filter_status != "all":
@@ -5741,7 +5682,7 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         self.update_empty_hint()
 
     def lossless_row(self, track):
-        """解密保留下来的无损文件，在选择模式里也单独占一行。"""
+        """解密出来的 FLAC / OGG，在选择模式里也单独占一行。"""
         path = self.lossless_path(track)
         if not path:
             return None
@@ -5749,12 +5690,12 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         if row is None:
             row = scanner.Track(path)
             row.is_out = True
-            row.out_kind = "flac"
             self._out_rows[path] = row
         row.title = track.title
         row.artist = track.artist
         row.name = track.name
         row.kind = track.kind if track.kind in ("flac", "ogg") else "flac"
+        row.out_kind = row.kind
         row.ext = track.plain_ext
         row.plain_ext = track.plain_ext
         row.duration = track.duration
@@ -5770,44 +5711,14 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
             row.size = 0
         return row
 
-    def output_row(self, track):
-        """把某首歌已生成的 MP3 变成独立的一行（一行 = 一个真实文件）。"""
-        mp3 = track.output or ""
-        row = self._out_rows.get(mp3)
-        if row is None:
-            row = scanner.Track(mp3)
-            row.is_out = True
-            self._out_rows[mp3] = row
-        row.title = track.title
-        row.artist = track.artist
-        row.name = track.name
-        row.kind = "mp3"
-        row.out_kind = "mp3"
-        row.ext = ".mp3"
-        row.plain_ext = ".mp3"
-        row.duration = track.duration
-        row.sample_rate = track.sample_rate
-        row.channels = track.channels
-        row.bits = track.bits
-        row.cover_path = track.cover_path
-        row.status = "done"
-        row.message = "已完成"
-        try:
-            row.size = os.path.getsize(mp3)
-        except OSError:
-            row.size = track.output_size or 0
-        return row
-
     def all_rows(self):
-        """一个真实文件一行：源文件、解密出的无损、已生成的 MP3 各占一行。"""
+        """一个真实文件一行：源文件、解密出的 FLAC / OGG 各占一行。"""
         rows = list(self.tracks)
         for track in self.tracks:
             if self.has_flac(track):
                 lossless = self.lossless_row(track)
                 if lossless is not None:
                     rows.append(lossless)
-            if (track.output or "").lower().endswith(".mp3") and os.path.isfile(track.output):
-                rows.append(self.output_row(track))
         return rows
 
     def status_bucket(self, track):
@@ -5850,24 +5761,19 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         rows = self.base_rows()
         if key in ("all", "", "group"):
             return rows
-        if key in ("enc", "mflac", "mgg", "flac", "ogg", "mp3"):
+        if key in ("enc", "mflac", "mgg", "flac", "ogg"):
             key = "kind:" + key          # 胶囊行直接用裸 key，这里统一收口
         if key.startswith("kind:"):
             value = key.split(":", 1)[1]
             if value == "enc":
                 return [t for t in rows if not t.is_out]
-            if value == "mp3":
-                if self.select_mode:
-                    return [t for t in rows if t.is_out and t.out_kind == "mp3"]
-                return [t for t in rows if self.has_mp3(t)]
             if value in ("mflac", "mgg"):
                 # 和 refresh_view 保持一致：容器分类不看解密状态
                 return [t for t in rows if not t.is_out
                         and t.path.lower().endswith("." + value)]
             if value in ("flac", "ogg"):
                 if self.select_mode:
-                    return [t for t in rows if t.is_out and t.out_kind == "flac"
-                            and t.kind == value]
+                    return [t for t in rows if t.is_out and t.out_kind == value]
                 return [t for t in rows if not t.is_out and t.kind == value
                         and self.is_converted(t)]
             return [t for t in rows if not t.is_out and t.kind == value]
@@ -6034,17 +5940,13 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         if getattr(track, "is_out", False):
             self._out_rows.pop(track.path, None)
             for src in self.tracks:
-                if track.out_kind == "mp3" and src.output and \
-                        os.path.normcase(src.output) == os.path.normcase(track.path):
+                if os.path.normcase(self.lossless_path(src) or "") == \
+                        os.path.normcase(track.path):
                     src.output = ""
                     src.output_size = 0
                     src.message = ""
                     self.invalidate_lossless(src)
-                    src.status = "done" if self.has_flac(src) else "ready"
-                elif track.out_kind == "flac" and \
-                        os.path.normcase(self.lossless_path(src) or "") == os.path.normcase(track.path):
-                    self.invalidate_lossless(src)
-                    src.status = "done" if self.has_mp3(src) else "ready"
+                    src.status = "ready"
         else:
             self.tracks = [t for t in self.tracks if t is not track]
             self._playlist_tracks = [t for t in self._playlist_tracks if t is not track]
@@ -6093,22 +5995,22 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
                 except OSError:
                     logging.warning("删除失败：%s", path, exc_info=True)
             if track.is_out:
-                handled = False
+                # 删的是解密产物：按磁盘现状重新判定每首歌的状态
                 for src in self.tracks:
-                    if src.output and os.path.normcase(src.output) == os.path.normcase(track.path):
+                    lp = self.lossless_path(src)
+                    if lp and os.path.isfile(lp):
+                        src.output = lp
+                        try:
+                            src.output_size = os.path.getsize(lp)
+                        except OSError:
+                            src.output_size = 0
+                    else:
                         src.output = ""
                         src.output_size = 0
                         src.message = ""
-                        # 只删了 MP3：解出来的无损还在就仍然算「解过了」，否则退回未解密
                         self.invalidate_lossless(src)
-                        src.status = "done" if self.has_flac(src) else "ready"
-                        handled = True
-                if not handled and getattr(track, "out_kind", "") == "flac":
-                    # 删的是解密出来的无损：MP3 还在就还算转好了
-                    for src in self.tracks:
-                        if os.path.normcase(self.lossless_path(src)) == os.path.normcase(track.path):
-                            self.invalidate_lossless(src)
-                            src.status = "done" if self.has_mp3(src) else "ready"
+                        if src.status in ("done", "skipped"):
+                            src.status = "ready"
             else:
                 removed.add(track.path)
                 for src in self.tracks:
@@ -6303,7 +6205,7 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         """进度显示在开始按钮上，右侧计数只留给「共 N 首」。"""
         if getattr(self, "start_btn", None) is None:
             return
-        base = "停止" if (self._runner_thread is not None) else "开始转换"
+        base = "停止" if (self._runner_thread is not None) else "开始解密"
         self.start_btn.setText("%s · %s" % (base, text) if text else base)
 
     def update_empty_hint(self):
@@ -6345,9 +6247,9 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
                 self.fmt_btn.setToolTip("切换这首歌的播放格式" if len(files) > 1
                                         else "这首歌只有一种可播放格式")
             else:
-                self.fmt_btn.setText("未转换")
+                self.fmt_btn.setText("未解密")
                 self.fmt_btn.setEnabled(False)
-                self.fmt_btn.setToolTip("这首歌还没转出可播放的文件，转好才能播放")
+                self.fmt_btn.setToolTip("这首歌还没解密，解密后才能播放")
         self.now_artist.setText(track.artist or "未知歌手")
         if track.cover_path and os.path.exists(track.cover_path):
             pix = cover_pixmap(track.cover_path, 46, self.devicePixelRatioF())
@@ -6376,7 +6278,7 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
                 return True
         return super().eventFilter(obj, event)
 
-    # ================= 开始转换 =================
+    # ================= 开始解密 =================
     def on_start_clicked(self):
         if self._runner_thread is not None and self._runner_thread.isRunning():
             self._runner.cancel()
@@ -6393,20 +6295,19 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         if not targets:
             targets = pool
         if not targets:
-            self.info("没有可转换的歌", "先选一个含有 .mflac / .mgg 的文件夹。")
+            self.info("没有可解密的歌", "先选一个含有 .mflac / .mgg 的文件夹。")
             return
-        if self.select_mode:               # 开始转换就退回普通视图，别停在挑选状态
+        if self.select_mode:               # 开始解密就退回普通视图，别停在挑选状态
             self.set_select_mode(False)
 
         root = os.path.join(self.input_dir, "output")
         runner = main.Runner(
             self.input_dir,
             flac_dir=os.path.join(root, "flac"),
-            mp3_dir=os.path.join(root, "mp3"),
-            bitrate=self.current_bitrate(),
-            session=getattr(self, "_scan_session", None),
-            keep_flac=self.cb_keep_flac.isChecked(),
+            ogg_dir=os.path.join(root, "ogg"),
             force=self.cb_force.isChecked(),
+            embed_covers=self.cb_cover.isChecked(),
+            session=getattr(self, "_scan_session", None),
             on_event=self.emit_event,
         )
         self._runner = runner
@@ -6451,7 +6352,7 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
                     track.status = "done"
                 elif state == "fail":
                     track.status = "failed"
-                    logging.warning("转换失败：%s —— %s", track.name, payload.get("message") or "")
+                    logging.warning("解密失败：%s —— %s", track.name, payload.get("message") or "")
                 elif state == "skip":
                     track.status = "skipped"
                 else:
@@ -6460,20 +6361,17 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
                     self.toast.set_current(track.name or Path(track.path).name)
                 elif state in ("done", "fail", "skip"):
                     self._run_done += 1
-                    self.toast.set_progress("转换", self._run_done, self._run_total)
+                    self.toast.set_progress("解密", self._run_done, self._run_total)
                 if payload.get("message"):
                     track.message = payload["message"]
-                if state == "done":
-                    mp3 = os.path.join(self.input_dir, "output", "mp3",
-                                       Path(track.path).stem + ".mp3")
-                    if os.path.exists(mp3):
-                        track.output = mp3
+                if state in ("done", "skip"):
+                    out = payload.get("output") or ""
+                    if out and os.path.isfile(out):
+                        track.output = out
                         try:
-                            track.output_size = os.path.getsize(mp3)
+                            track.output_size = os.path.getsize(out)
                         except OSError:
                             track.output_size = 0
-                        if not track.duration:
-                            track.duration = metainfo.mp3_duration(mp3)
                 self.model.ping(track)
                 self.update_count()
                 self.invalidate_lossless(track)   # 刚解出来的无损可能刚落到磁盘上
@@ -6513,7 +6411,7 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         self._notify_run_done(ok, fail, skip, elapsed)
 
     def on_run_finished(self):
-        self.start_btn.setText("开始转换")
+        self.start_btn.setText("开始解密")
         self.start_btn.setEnabled(True)
         self.opt_btn.setEnabled(True)
         self._runner_thread = None
@@ -6590,10 +6488,10 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         """双击一首歌：能播就播它，不能播就只提示，绝不顺手播别的歌。"""
         files = self.playable_files(track)
         if not files:
-            self.notify("这个使不得 请转换后再试")
+            self.notify("这个使不得 请先解密再试")
             return
         # 列表停在某个具体格式上时，优先播这个格式（双击 FLAC 行就放 FLAC）
-        prefer = self.filter_kind.upper() if self.filter_kind in ("mp3", "flac", "ogg") else ""
+        prefer = self.filter_kind.upper() if self.filter_kind in ("flac", "ogg") else ""
         pick = files[0][1]
         if prefer:
             for label, path in files:
@@ -6640,22 +6538,18 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
             self.view.setCurrentIndex(self.model.index(row, 0))
 
     def playable_files(self, track):
-        """这首歌真正能播的文件：MP3、以及保留下来的 FLAC。加密源文件不算。"""
+        """这首歌真正能播的文件：解密出来的 FLAC / OGG。加密源文件不算。"""
         files = []
         if track is None:
             return files
         if track.is_out:
             # 选择模式下每个输出文件自己就是一行，它的 path 就是那个文件
             lower = track.path.lower()
-            if lower.endswith(".mp3") and os.path.isfile(track.path):
-                files.append(("MP3", track.path))
-            elif lower.endswith(".flac") and os.path.isfile(track.path):
+            if lower.endswith(".flac") and os.path.isfile(track.path):
                 files.append(("FLAC", track.path))
             elif lower.endswith(".ogg") and os.path.isfile(track.path):
                 files.append(("OGG", track.path))
             return files
-        if self.has_mp3(track):
-            files.append(("MP3", track.output))
         lp = self.lossless_path(track)
         if lp and os.path.isfile(lp):
             ext = (os.path.splitext(lp)[1] or "").lstrip(".").lower()
@@ -6671,11 +6565,10 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
 
         files = self.playable_files(track)
         if not files:
-            self.info("没有可播放的文件", "这首歌还没有转出来的 MP3。")
+            self.info("没有可播放的文件", "这首歌还没有解密出来。")
             return
         if len(files) == 1:
-            self.info("只有一种格式", "这首歌目前只有 %s 可以播放。\n"
-                      "在「转换选项」里打开「保留解密后的 FLAC」，转完后就能在这里切换。" % files[0][0])
+            self.info("只有一种格式", "这首歌目前只有 %s 可以播放。" % files[0][0])
             return
 
         current = os.path.normcase(self.player.current_path() or "")
@@ -6912,7 +6805,7 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         title.setFont(font)
         lay.addWidget(title)
 
-        sub = QLabel("当前 %s · 更新后配色、字号、转换选项都会保留" % VERSION)
+        sub = QLabel("当前 %s · 更新后配色、字号、解密选项都会保留" % VERSION)
         sub.setObjectName("metaText")
         lay.addWidget(sub)
 
@@ -6989,7 +6882,7 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
             return
         thread = getattr(self, "_runner_thread", None)
         if thread is not None and thread.is_alive():
-            self.notify("等这次转换结束再更新")
+            self.notify("等这次解密结束再更新")
             return
         version = self._update_version
         zip_path = os.path.join(self.cache_path("update"), "TuneFree-%s.zip" % version)

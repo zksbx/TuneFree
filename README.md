@@ -1,6 +1,6 @@
 # `TuneFree`
 
-**把 QQ音乐下载的加密歌曲（`.mflac` / `.mgg`）一键变成任何播放器都能放的 `MP3` 或 `FLAC`。**
+**把 QQ音乐下载的加密歌曲（`.mflac` / `.mgg`）一键还原成任何播放器都能放的 `FLAC` / `OGG`，并自动补上封面。**
 
 [![Release](https://img.shields.io/github/v/release/zksbx/TuneFree?color=2ea043&label=release)](https://github.com/zksbx/TuneFree/releases/latest)
 [![Downloads](https://img.shields.io/badge/downloads-3.6k%2B-3b82f6)](https://wwbtj.lanzouc.com/b01d7csi8j)
@@ -29,19 +29,20 @@
 
 这些文件只有 `QQ`音乐能放，拷到车机、`MP3`、其他播放器里全是「格式不支持」。
 
-`TuneFree` 做的事很简单：**在 `QQ`音乐进程内调用它自己的解密函数**，把文件还原成正常的 `FLAC/OGG`，再用 `FFmpeg` 转成 `MP3`。
+`TuneFree` 做的事很简单：**在 `QQ`音乐进程内调用它自己的解密函数**，把文件还原成正常的 `FLAC/OGG`，不再转码。解密完成后如果文件里没有封面，会自动从 QQ 音乐的专辑图缓存补一张。
 
 ```
-.mflac / .mgg  ──解密──▶  .flac / .ogg  ──转码──▶  .mp3
+.mflac  ──解密──▶  .flac
+.mgg    ──解密──▶  .ogg
 ```
 
 ## 三步就能用
 
 1. **打开 QQ音乐并登录**，保持运行（不用播放歌曲）
 2. 双击 `TuneFree.exe`，点顶栏左侧的文件夹按钮，选存放 `.mflac` 或 `.mgg` 的目录（也可以直接把文件夹拖进窗口）
-3. 点「开始转换」，等进度跑完，去 `output\mp3` 拿 `MP3`（完成后会弹提示，开了系统通知也会收到通知）
+3. 点「开始解密」，等进度跑完，去 `output\flac` / `output\ogg` 拿结果（完成后会弹提示，开了系统通知也会收到通知）
 
-转换出来的文件名和原曲一致，可以直接拷进手机或车机。
+解密出来的文件名和原曲一致，可以直接拷进手机或车机。
 
 ## 赞赏
 
@@ -66,18 +67,18 @@
 ## 功能
 
 - 🎵 支持 `.mflac` / `.mgg` 批量解密，自动递归子文件夹
-- 🎚 默认直接出 `320k` MP3，转换选项里可保留解密出的无损文件
-- 🏷 格式胶囊标清每首歌的当前形态：`MFLAC` / `MGG` 是还没解密，`FLAC` / `OGG` 是解密好了，`MP3` 是转完了
-- 🗂 格式胶囊一键筛选：全部 / 未解密 / `MFLAC` / `MGG` / `FLAC` / `OGG` / `MP3`，计数实时更新；点「筛选」还能按歌手过滤
+- 🖼 解密后自动补封面：文件里没有图时，从 QQ 音乐的专辑图缓存挑最大的一张写进 `PICTURE` / `METADATA_BLOCK_PICTURE`
+- 🏷 格式胶囊标清每首歌的当前形态：`MFLAC` / `MGG` 是还没解密，`FLAC` / `OGG` 是解密好了
+- 🗂 格式胶囊一键筛选：全部 / 未解密 / `MFLAC` / `MGG` / `FLAC` / `OGG`，计数实时更新；点「筛选」还能按歌手过滤
 - 🎧 双击列表就地试听，播放条带封面和两行歌词；点封面或「沉浸」进整页播放页，左边封面与进度、右边中英双语歌词
-- 🔀 播放时能切听哪一版：同名歌曲有 MP3 / FLAC / OGG 几份文件，播放条上直接选
+- 🔀 同名歌曲有多份文件时，播放条上可以直接选听哪一版
 - 🪟 迷你播放器：缩成小窗浮在桌面一角，带歌词与进度，位置会记住
 - 📥 拖拽导入：把文件夹拖进窗口就开始扫描，不用点按钮
 - ⌨️ 全局媒体键：键盘上的播放 / 暂停、上一首、下一首直接控制；应用内还有一组快捷键
-- 🔔 托盘常驻：关窗口不退出，转换在后台继续跑；转完发系统通知
+- 🔔 托盘常驻：关窗口不退出，解密在后台继续跑；解完发系统通知
 - 🎨 浅色 / 深色两套内置配色，另可自存三套自定义配色；界面字号、歌词字号都能调
-- ⚡ 多线程转码 + 断点续跑：中途关掉，重跑会跳过已经完成的文件
-- 🔄 自动检查更新，同意后原地覆盖升级，配色、字号、转换选项全部保留
+- ⚡ 断点续跑：中途关掉，重跑会跳过已经解出来的文件
+- 🔄 自动检查更新，同意后原地覆盖升级，配色、字号、解密选项全部保留
 - 📖 断网也能查帮助：使用帮助与赞赏页会回落到程序自带的说明书，不需要等网络
 - 🔒 不联网、不上传，除了检查更新不会连接任何服务器
 
@@ -117,17 +118,15 @@ QQ音乐更新后改了内部函数名，当前版本注入不进去。
 - 把 QQ音乐降级到已知可用的版本，或者
 - 等 TuneFree 适配新版本（关注 Release）
 
-### 解密成功，但转 MP3 全部失败
+### 解密出来没有封面
 
-多数是安全软件禁止 `ffmpeg.exe` 创建文件。程序会自动改用「管道输出 + 由程序落盘」的方式重试，通常能过。
+封面不会跟着 `.mflac` / `.mgg` 一起下载——「同时下载专辑图片」只是让 QQ音乐把图放进它自己的缓存。TuneFree 解密完成后会去 `%APPDATA%\Tencent\QQMusic\QQMusicCache\QQMusicPicture` 按「歌手 + 专辑」找图并写进文件；缓存里没有就保持原样（解密选项里可以关掉自动补封面）。
 
-如果还是失败，把 TuneFree 目录加入信任区再试。
+### 有少数歌死活解不出来
 
-### 有少数歌死活转不出来
+先看音质。程序只支持 **标准 / HQ / SQ** 三档，如果这首歌在 QQ音乐里下的是 **Hi-Res（臻品音质）、臻品母带、杜比全景声**，拿到的就不是普通音频流，解密必然失败——把那首歌的音质改成 SQ 或更低，重新下载一次即可。
 
-先看音质。程序只支持 **标准 / HQ / SQ** 三档，如果这首歌在 QQ音乐里下的是 **Hi-Res（臻品音质）、臻品母带、杜比全景声**，拿到的就不是普通音频流，转换必然失败——把那首歌的音质改成 SQ 或更低，重新下载一次即可。
-
-确认是标准 / HQ / SQ 还转不出来，多半需要先在 QQ音乐里播放一遍，让它完成解密加载，再运行 TuneFree。
+确认是标准 / HQ / SQ 还解不出来，多半需要先在 QQ音乐里播放一遍，让它完成解密加载，再运行 TuneFree。
 
 ### 支持 Mac / Linux 吗？
 
@@ -145,15 +144,12 @@ Linux 目前没有人维护。
 # 1. 装依赖
 pip install -r requirements.txt
 
-# 2. 把 ffmpeg.exe 放到本目录（程序会在这个目录找它）
-#    Windows 版下载：https://www.gyan.dev/ffmpeg/builds/ （选 release essentials）
-
-# 3. 启动图形界面
+# 2. 启动图形界面
 python app.py
 
 # 或者用命令行（app.py 和 main.py 都行）
-python app.py --cli -i "D:\下载" -o "D:\音乐" -b 320k
-python main.py -i "D:\下载" -o "D:\音乐" -b 320k
+python app.py --cli -i "D:\下载" -o "D:\音乐"
+python main.py -i "D:\下载" -o "D:\音乐"
 ```
 
 命令行参数：
@@ -161,12 +157,10 @@ python main.py -i "D:\下载" -o "D:\音乐" -b 320k
 | 参数 | 说明 |
 |---|---|
 | `-i, --input` | 输入目录，默认当前目录 |
-| `-o, --output` | 输出目录，默认 `./output` |
-| `--mp3-dir` / `--flac-dir` | 分别指定 `MP3` / `FLAC` 输出位置 |
-| `-b, --bitrate` | `MP3` 比特率，默认 `192k` |
-| `--keep-flac` | 保留解密出的 `FLAC` |
-| `--no-mp3` | 只输出 `FLAC`，不转 `MP3` |
-| `--force` | 已存在的 `MP3` 也重新生成 |
+| `-o, --output` | 输出根目录，默认 `./output`（其下分 `flac` / `ogg`） |
+| `--flac-dir` / `--ogg-dir` | 分别指定 `FLAC` / `OGG` 输出位置 |
+| `--no-cover` | 不自动补封面 |
+| `--force` | 已经解出来的文件也重新解密 |
 | `-v, --version` | 显示版本号 |
 
 ## 项目结构
@@ -178,10 +172,10 @@ miniplayer.py        迷你播放器小窗
 hotkeys.py           全局媒体键（低级键盘钩子）
 player.py            播放器封装（QMediaPlayer）
 lyrics.py            歌词匹配、解析与缓存
-main.py              命令行 / 后端：注入、解密、转码
+main.py              命令行 / 后端：注入、解密、补封面
 scanner.py           扫描歌曲目录，读元信息、找封面
 metainfo.py          FLAC / OGG / MP3 头解析
-converter.py         ffmpeg 转码线程池
+coverart.py          从 QQ音乐图片缓存找封面并写进 FLAC / OGG
 session.py           与会话/进程注入相关的封装
 hook_qq_music.js     Frida 注入脚本（解密核心）
 version.py           版本号与仓库地址的唯一来源
@@ -206,7 +200,8 @@ docs/                官网（静态单页，中英双语）
 ## 鸣谢
 
 - [Frida](https://frida.re/) — 进程注入
-- [FFmpeg](https://ffmpeg.org/) — 音频转码
+- [mutagen](https://mutagen.readthedocs.io/) — 封面与标签读写
+- [FFmpeg](https://ffmpeg.org/) — 音频格式参考（本版不再用于转码）
 - [music-decryptor](https://github.com/ericjuice/music-decryptor) — 解密脚本的起点
 - [Unlock Music](https://github.com/unlock-music/unlock-music) — 加密格式的解析经验
 - [PyInstaller](https://pyinstaller.org/) — 打包

@@ -48,7 +48,7 @@ class Track:
         self.output = ""
         self.output_size = 0
         self.is_out = False
-        self.out_kind = ""           # 输出行才有：mp3 / flac
+        self.out_kind = ""           # 输出行才有：flac / ogg
         self.dupes = 0
 
 

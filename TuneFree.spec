@@ -11,7 +11,6 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [
     ('hook_qq_music.js', '.'),
-    ('ffmpeg.exe', '.'),
     ('赞赏码.png', '.'),
     ('使用说明.html', '.'),
     ('tunefree.ico', '.'),
@@ -21,6 +20,13 @@ hiddenimports = []
 
 # frida 带原生 .pyd / .dll，交给 hook 全量收集
 for pkg in ('frida',):
+    d, b, h = collect_all(pkg)
+    datas += d
+    binaries += b
+    hiddenimports += h
+
+# mutagen 的格式处理器是运行时按需 import 的，静态分析收不全
+for pkg in ('mutagen',):
     d, b, h = collect_all(pkg)
     datas += d
     binaries += b
