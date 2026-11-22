@@ -1,6 +1,6 @@
 # `TuneFree`
 
-**Turn the encrypted songs you downloaded in QQ Music (`.mflac` / `.mgg`) into `MP3` or `FLAC` that any player can open.**
+**Turn the encrypted songs you downloaded in QQ Music (`.mflac` / `.mgg`) into standard `FLAC` / `OGG` that any player can open.**
 
 [![Release](https://img.shields.io/github/v/release/zksbx/TuneFree?color=2ea043&label=release)](https://github.com/zksbx/TuneFree/releases/latest)
 [![Downloads](https://img.shields.io/badge/downloads-3.6k%2B-3b82f6)](https://wwbtj.lanzouc.com/b01d7csi8j)
@@ -31,17 +31,18 @@ Some tracks downloaded in QQ Music come in encrypted containers:
 
 Only QQ Music can play these. Copy one to a car stereo, an MP3 player or any other player and all you get is "unsupported format".
 
-TuneFree does something simple: **it calls QQ Music's own decryption function inside the running process**, restores the file to a normal `FLAC`/`OGG`, then converts it to `MP3` with `FFmpeg`.
+TuneFree does something simple: **it calls QQ Music's own decryption function inside the running process** and restores the file to a normal `FLAC`/`OGG`. No re-encoding.
 
 ```
-.mflac / .mgg  ──decrypt──▶  .flac / .ogg  ──encode──▶  .mp3
+.mflac  ──decrypt──▶  .flac
+.mgg    ──decrypt──▶  .ogg
 ```
 
 ## Three steps
 
 1. **Open QQ Music and log in**, keep it running (you don't need to play anything)
 2. Double-click `TuneFree.exe`, click the folder button on the left of the top bar and pick the folder holding your `.mflac` or `.mgg` files (or just drag the folder onto the window)
-3. Press **Start converting**, wait for the progress to finish, collect the `MP3`s from `output\mp3` (you get a dialog, and a system notification if you enabled it)
+3. Press **Start decrypting**, wait for the progress to finish, collect the results from `output\flac` / `output\ogg` (you get a dialog, and a system notification if you enabled it)
 
 Output files keep the original names, so you can copy them straight onto a phone or car stereo.
 
@@ -68,17 +69,16 @@ Your antivirus will still complain, and that is expected: TuneFree injects code 
 ## Features
 
 - 🎵 Batch decryption of `.mflac` / `.mgg`, walks subfolders automatically
-- 🎚 `320k` MP3 by default; keep the decrypted lossless files with one checkbox
-- 🏷 Format pills tell you where each track stands: `MFLAC` / `MGG` not decrypted yet, `FLAC` / `OGG` decrypted, `MP3` converted
-- 🗂 One-click filter pills (all / undecrypted / `MFLAC` / `MGG` / `FLAC` / `OGG` / `MP3`) with live counts, plus an artist filter
+- 🏷 Format pills tell you where each track stands: `MFLAC` / `MGG` not decrypted yet, `FLAC` / `OGG` decrypted
+- 🗂 One-click filter pills (all / undecrypted / `MFLAC` / `MGG` / `FLAC` / `OGG`) with live counts, plus an artist filter
 - 🎧 Double-click any row to preview it; the player bar shows cover art and two lyric lines. Click the cover or **Immersive** for a full-page player: cover and controls on the left, bilingual lyrics on the right
-- 🔀 Pick which copy to play when a song has MP3 / FLAC / OGG versions, right from the player bar
+- 🔀 Pick which copy to play when a song has several files, right from the player bar
 - 🪟 Mini player: a small always-on-top window with lyrics and progress that remembers where you put it
 - 📥 Drag and drop: drop a folder onto the window to start scanning
 - ⌨️ Global media keys (play/pause, next, previous) plus a set of in-app shortcuts
-- 🔔 Tray mode: closing the window keeps a conversion running in the background, with a notification when it is done
+- 🔔 Tray mode: closing the window keeps decryption running in the background, with a notification when it is done
 - 🎨 Light / dark built in, plus up to three custom colour schemes; UI and lyric font sizes are adjustable
-- ⚡ Multi-threaded encoding + resume: an interrupted run skips what is already done
+- ⚡ Resume: an interrupted run skips what is already decrypted
 - 🔄 Update check with in-place upgrade that keeps your colours, font sizes and options
 - 📖 Help works offline: Help and Support fall back to the bundled guide when there is no network
 - 🔒 Offline: apart from the update check it contacts no server at all
@@ -119,17 +119,11 @@ QQ Music changed its internal function names, so the current build cannot inject
 - Downgrade QQ Music to a known-good version, or
 - Wait for TuneFree to support the new release (watch Releases)
 
-### Decryption works, but every MP3 conversion fails
+### A handful of songs simply won't decrypt
 
-Usually security software is preventing `ffmpeg.exe` from creating files. The app automatically retries through "pipe output + write the file itself", which normally gets through.
+Check the quality tier first. Only **Standard / HQ / SQ** are supported; if a song was downloaded as **Hi-Res (臻品音质), Master (臻品母带) or Dolby Atmos** it carries no normal audio stream, so decryption always fails — re-download it at SQ or lower and retry.
 
-If it still fails, add the TuneFree folder to your trust list.
-
-### A handful of songs simply won't convert
-
-Check the quality tier first. Only **Standard / HQ / SQ** are supported; if a song was downloaded as **Hi-Res (臻品音质), Master (臻品母带) or Dolby Atmos** it carries no normal audio stream, so conversion always fails — re-download it at SQ or lower and retry.
-
-If it is already Standard / HQ / SQ, some files need to be played once in QQ Music first so the full data lands in the local cache, then convert them.
+If it is already Standard / HQ / SQ, some files need to be played once in QQ Music first so the full data lands in the local cache, then decrypt them.
 
 ### Mac / Linux support?
 
@@ -147,15 +141,12 @@ Linux is currently unmaintained.
 # 1. install dependencies
 pip install -r requirements.txt
 
-# 2. put ffmpeg.exe in this folder (the app looks for it here)
-#    Windows builds: https://www.gyan.dev/ffmpeg/builds/ (pick release essentials)
-
-# 3. launch the GUI
+# 2. launch the GUI
 python app.py
 
 # or use the command line (app.py and main.py both work)
-python app.py --cli -i "D:\downloads" -o "D:\music" -b 320k
-python main.py -i "D:\downloads" -o "D:\music" -b 320k
+python app.py --cli -i "D:\downloads" -o "D:\music"
+python main.py -i "D:\downloads" -o "D:\music"
 ```
 
 Command-line options:
@@ -163,12 +154,9 @@ Command-line options:
 | Option | Description |
 |---|---|
 | `-i, --input` | input folder, defaults to the current folder |
-| `-o, --output` | output folder, defaults to `./output` |
-| `--mp3-dir` / `--flac-dir` | set the `MP3` / `FLAC` output locations separately |
-| `-b, --bitrate` | `MP3` bitrate, default `192k` |
-| `--keep-flac` | keep the decrypted `FLAC` |
-| `--no-mp3` | output `FLAC` only, no `MP3` |
-| `--force` | rebuild `MP3`s that already exist |
+| `-o, --output` | output root, defaults to `./output` (with `flac` / `ogg` inside) |
+| `--flac-dir` / `--ogg-dir` | set the `FLAC` / `OGG` output locations separately |
+| `--force` | re-decrypt files that already exist |
 | `-v, --version` | print the version |
 
 ## Project layout
@@ -180,10 +168,9 @@ miniplayer.py        mini player window
 hotkeys.py           global media keys (low-level keyboard hook)
 player.py            playback wrapper around QMediaPlayer
 lyrics.py            lyric lookup, parsing and cache
-main.py              CLI / backend: inject, decrypt, encode
+main.py              CLI / backend: inject, decrypt
 scanner.py           scans the music folder, reads metadata, finds covers
 metainfo.py          FLAC / OGG / MP3 header parsing
-converter.py         ffmpeg encoding thread pool
 session.py           session / process-injection helpers
 hook_qq_music.js     Frida injection script (the decryption core)
 version.py           single source of truth for the version and repo URL
@@ -208,7 +195,7 @@ One reminder: MIT covers the **code**. It does not loosen the limits on **how yo
 ## Credits
 
 - [Frida](https://frida.re/) — process injection
-- [FFmpeg](https://ffmpeg.org/) — audio encoding
+- [FFmpeg](https://ffmpeg.org/) — audio format reference (no longer used for encoding)
 - [music-decryptor](https://github.com/ericjuice/music-decryptor) — where the decryption script started
 - [Unlock Music](https://github.com/unlock-music/unlock-music) — format parsing experience
 - [PyInstaller](https://pyinstaller.org/) — packaging

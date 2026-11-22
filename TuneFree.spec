@@ -11,7 +11,6 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [
     ('hook_qq_music.js', '.'),
-    ('ffmpeg.exe', '.'),
     ('赞赏码.png', '.'),
     ('使用说明.html', '.'),
     ('tunefree.ico', '.'),
@@ -89,3 +88,4 @@ coll = COLLECT(
     upx=False,
     name='TuneFree',
 )
+
