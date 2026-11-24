@@ -1,5 +1,5 @@
 {
-  "version": "3.1.2",
+  "version": "3.1.3",
   "url": "https://github.com/zksbx/TuneFree/releases/latest",
-  "notes": "全新曲库界面、沉浸播放页与迷你播放器；断网也能打开使用帮助与赞赏页"
+  "notes": "全新曲库界面、沉浸播放页与迷你播放器；断网可查帮助；修复批量转换约百首后 QQ音乐内存耗尽的问题"
 }

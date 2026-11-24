@@ -68,7 +68,8 @@ Your antivirus will still complain, and that is expected: TuneFree injects code 
 ## Features
 
 - 🎵 Batch decryption of `.mflac` / `.mgg`, walks subfolders automatically
-- 🎚 `320k` MP3 by default; keep the decrypted lossless files with one checkbox
+- 🎚 `320k` MP3 by default; keep the decrypted lossless files with one checkbox. Tick **decrypt only** to stop after restoring files (`.mflac` → `FLAC`, `.mgg` → `OGG`)
+- 🏷 Tags first: when a file carries `TITLE` / `ARTIST`, they win over noisy file names
 - 🏷 Format pills tell you where each track stands: `MFLAC` / `MGG` not decrypted yet, `FLAC` / `OGG` decrypted, `MP3` converted
 - 🗂 One-click filter pills (all / undecrypted / `MFLAC` / `MGG` / `FLAC` / `OGG` / `MP3`) with live counts, plus an artist filter
 - 🎧 Double-click any row to preview it; the player bar shows cover art and two lyric lines. Click the cover or **Immersive** for a full-page player: cover and controls on the left, bilingual lyrics on the right
@@ -79,7 +80,7 @@ Your antivirus will still complain, and that is expected: TuneFree injects code 
 - 🔔 Tray mode: closing the window keeps a conversion running in the background, with a notification when it is done
 - 🎨 Light / dark built in, plus up to three custom colour schemes; UI and lyric font sizes are adjustable
 - ⚡ Multi-threaded encoding + resume: an interrupted run skips what is already done
-- 🔄 Update check with in-place upgrade that keeps your colours, font sizes and options
+- 🔄 Update check with in-place upgrade that keeps your colours, font sizes and options; downloads come from GitHub, so use an [accelerator](https://steampp.net/) first if it is slow
 - 📖 Help works offline: Help and Support fall back to the bundled guide when there is no network
 - 🔒 Offline: apart from the update check it contacts no server at all
 
@@ -131,6 +132,14 @@ Check the quality tier first. Only **Standard / HQ / SQ** are supported; if a so
 
 If it is already Standard / HQ / SQ, some files need to be played once in QQ Music first so the full data lands in the local cache, then convert them.
 
+### Batch conversion errors out or stops after ~100 songs
+
+QQ Music is a 32-bit process with roughly 4GB of address space. Up to 3.1.2 every decrypt allocated a whole song's worth of memory inside that process, so ~100 SQ files exhausted it — and the error that surfaced looked like a file or quality problem.
+
+Since 3.1.3 decryption streams in 4MB chunks (read 4MB, write 4MB, reuse the buffer), so the footprint no longer scales with track size. The runner also probes free address space every ten tracks and pauses with a clear message before things go wrong.
+
+If you see that message: fully quit QQ Music (right-click its tray icon and exit too) → reopen and sign in → hit Start again. Files already converted are skipped.
+
 ### Mac / Linux support?
 
 The **Windows build** is the only official release here — the QQ Music client it injects into exists only on Windows.
@@ -167,7 +176,7 @@ Command-line options:
 | `--mp3-dir` / `--flac-dir` | set the `MP3` / `FLAC` output locations separately |
 | `-b, --bitrate` | `MP3` bitrate, default `192k` |
 | `--keep-flac` | keep the decrypted `FLAC` |
-| `--no-mp3` | output `FLAC` only, no `MP3` |
+| `--no-mp3` | decrypt only, no encoding: `.mflac` → `FLAC`, `.mgg` → `OGG` (written to `output/ogg` by default) |
 | `--force` | rebuild `MP3`s that already exist |
 | `-v, --version` | print the version |
 
@@ -183,6 +192,7 @@ lyrics.py            lyric lookup, parsing and cache
 main.py              CLI / backend: inject, decrypt, encode
 scanner.py           scans the music folder, reads metadata, finds covers
 metainfo.py          FLAC / OGG / MP3 header parsing
+coverart.py          cover lookup in the QQ Music picture cache (falls back to online search)
 converter.py         ffmpeg encoding thread pool
 session.py           session / process-injection helpers
 hook_qq_music.js     Frida injection script (the decryption core)
@@ -213,6 +223,8 @@ One reminder: MIT covers the **code**. It does not loosen the limits on **how yo
 - [Unlock Music](https://github.com/unlock-music/unlock-music) — format parsing experience
 - [PyInstaller](https://pyinstaller.org/) — packaging
 - [Dora-z/TuneFree_Mac](https://github.com/Dora-z/TuneFree_Mac) — the macOS version, an independent implementation
+- **Ajing** — reported the memory exhaustion after ~100 batch conversions, which led to chunked decryption in 3.1.3
+- **GuerGuaZhang** — contributed the exit-code, file-name splitting, tag-priority and decrypt-only changes (PR #7/#8/#9/#10); 3.1.3 adopts the ideas
 
 ## Support
 

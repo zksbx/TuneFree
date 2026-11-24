@@ -164,7 +164,7 @@
 <body>
     <div class="container">
         <h1>🎵 TuneFree</h1>
-        <div class="subtitle">把 QQ音乐下载的加密歌曲（<code>.mflac</code> / <code>.mgg</code>）变成任何播放器都能放的 MP3 · v3.1.2</div>
+        <div class="subtitle">把 QQ音乐下载的加密歌曲（<code>.mflac</code> / <code>.mgg</code>）变成任何播放器都能放的 MP3 · v3.1.3</div>
 
         <p><strong>TuneFree</strong> 在 QQ音乐进程里调用它自己的解密函数，把加密文件还原成正常的 FLAC / OGG，再用内置的 FFmpeg 转成 MP3。全程在你自己的电脑上完成，不上传任何文件。</p>
 
@@ -173,13 +173,14 @@
         <h2>✨ 功能特点</h2>
         <ul>
             <li><span class="badge">批量解密</span> 自动递归子文件夹，一次处理整库。</li>
-            <li><span class="badge">顺手转码</span> 默认直接出 <code>320k</code> MP3，也可以在转换选项里保留解密出的无损文件。</li>
+            <li><span class="badge">顺手转码</span> 默认直接出 <code>320k</code> MP3，也可以在转换选项里保留解密出的无损文件；勾上「只解密，不转码」就只还原文件（<code>.mflac</code> → <code>FLAC</code>，<code>.mgg</code> → <code>OGG</code>）。</li>
+            <li><span class="badge">标签优先</span> 文件里带 <code>TITLE</code> / <code>ARTIST</code> 标签的，用内嵌标签命名，不再被文件名里的杂质覆盖。</li>
             <li><span class="badge">看得清</span> 列表里每首歌都标着它现在的格式：没解密是 <code>MFLAC</code> / <code>MGG</code>，解密后是 <code>FLAC</code> / <code>OGG</code>，转好了再挂一个 <code>MP3</code>。</li>
             <li><span class="badge">筛选</span> 顶部一排格式胶囊（全部 / 未解密 / MFLAC / MGG / FLAC / OGG / MP3），点一下就是筛选，计数实时更新；最右的「筛选」还能按歌手过滤。</li>
             <li><span class="badge">能听</span> 双击列表里的歌就地试听，底部播放条带封面和两行歌词；点封面或「沉浸」进整页播放页，右边是中英双语歌词。</li>
             <li><span class="badge">选择模式</span> 点「选择」后可以按文件勾选，批量删除源文件或输出文件。</li>
             <li><span class="badge">好看</span> 浅色 / 深色两套内置配色，另可自存三套自定义配色；主界面字号、歌词字号都能调。</li>
-            <li><span class="badge">自动更新</span> 启动时检查新版本，同意后原地覆盖升级，配色、字号、转换选项全部保留。</li>
+            <li><span class="badge">自动更新</span> 启动时检查新版本，同意后原地覆盖升级，配色、字号、转换选项全部保留；下载要连 GitHub，慢的话先用 <a href="https://steampp.net/" target="_blank" rel="noopener">加速器</a> 再更新。</li>
             <li><span class="badge">后台</span> 关窗口时收进托盘、转换继续在后台跑、转完发系统通知，都在设置 → 行为里开；迷你播放器和全局媒体键也在那一页。</li>
         </ul>
 
@@ -218,6 +219,7 @@
         <ul>
             <li><strong>MP3 品质</strong>：320k（默认）/ 256k / 192k / 128k。</li>
             <li><strong>保留解密后的 FLAC</strong>：勾上就同时留下 <code>output\flac</code>，播放时还能在播放条上切换音源。</li>
+            <li><strong>只解密，不转码</strong>：勾上就停在解密这一步，<code>.mflac</code> 出 <code>FLAC</code>、<code>.mgg</code> 出 <code>OGG</code>，不再调用 FFmpeg；勾上时「保留解密后的 FLAC」会自动禁用。</li>
             <li><strong>重新生成已存在的 MP3</strong>：默认跳过已转好的歌，勾上就全部重来一遍。</li>
         </ul>
 
@@ -264,6 +266,7 @@
             <li><strong>Q：有少数歌死活转不出来。</strong><br>A：先看音质是不是 Hi-Res / 臻品母带 / 杜比全景声——这几档不支持。是标准 / HQ / SQ 的话，先在 QQ音乐里播放一遍再试。</li>
             <li><strong>Q：胶囊上 MGG 是 0，但文件夹里明明有。</strong><br>A：MGG / MFLAC 这两个胶囊统计的是磁盘上的文件（不管解没解密）；如果一个都没有，说明它们已经被整理到别处了。</li>
             <li><strong>Q：界面字太小 / 太大。</strong><br>A：设置 → 外观 → 字号，主界面和歌词可以分开调。</li>
+            <li><strong>Q：批量转换到一百来首就报错 / 停住了。</strong><br>A：QQ 音乐是 32 位程序，地址空间上限约 4GB，以前每解一首都要在它进程里占一整首的内存，SQ 这种大文件转一百来首就会把空间用光。3.1.3 起改成分块解密（读 4MB 写 4MB），占用和单曲大小无关，转换途中还会检测余量、快满了主动暂停并提示。遇到提示时：完全退出 QQ 音乐 → 重新打开并登录 → 回来点「开始转换」，已经转好的文件会自动跳过。</li>
         </ul>
 
         <h2>🛠️ 命令行</h2>
@@ -276,7 +279,7 @@
                 <tr><td><code>--mp3-dir</code> / <code>--flac-dir</code></td><td>分别指定 MP3 / FLAC 输出位置</td><td><code>--flac-dir "D:\无损"</code></td></tr>
                 <tr><td><code>-b</code> / <code>--bitrate</code></td><td>MP3 比特率，默认 <code>192k</code></td><td><code>-b 320k</code></td></tr>
                 <tr><td><code>--keep-flac</code></td><td>保留解密出的 FLAC / OGG</td><td><code>--keep-flac</code></td></tr>
-                <tr><td><code>--no-mp3</code></td><td>只出无损，不转 MP3</td><td><code>--no-mp3</code></td></tr>
+                <tr><td><code>--no-mp3</code></td><td>只解密不转码：<code>.mflac</code> 出 <code>FLAC</code>、<code>.mgg</code> 出 <code>OGG</code>（默认放 <code>output/ogg</code>）</td><td><code>--no-mp3</code></td></tr>
                 <tr><td><code>--force</code></td><td>已存在的 MP3 也重新生成</td><td><code>--force</code></td></tr>
             </tbody>
         </table>
@@ -289,6 +292,8 @@
             <li><a href="https://pyinstaller.org/" target="_blank" rel="noopener">PyInstaller</a>：打包。</li>
             <li><strong>Unlock Music 社区</strong>：加密格式的解析经验。</li>
             <li><strong>花红大裤衩</strong>：测试。　<strong>陌离</strong>：初版界面。　<strong>Sparkle</strong>：少数歌要先播放一遍才能转的经验。</li>
+            <li><strong>阿精</strong>：反馈了批量转换约一百首后 QQ 音乐内存耗尽的问题，这项修复由他而起。</li>
+            <li><strong>GuerGuaZhang</strong>：提交了退出码、文件名拆分、标签优先与「只解密」的改动，<code>3.1.3</code> 采纳了其中的思路。</li>
         </ul>
 
         <h2>📞 支持与反馈</h2>
@@ -306,7 +311,7 @@
 
         <footer>
             <p>感谢使用 <span style="font-weight:600; background:linear-gradient(135deg,#4c8bf5,#2f6ee0); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">TuneFree</span>，祝你听歌愉快！ 🎧</p>
-            <p style="margin-top: 8px;">© 2026 曾 · 使用说明 v3.1.2</p>
+            <p style="margin-top: 8px;">© 2026 曾 · 使用说明 v3.1.3</p>
         </footer>
     </div>
 </body>

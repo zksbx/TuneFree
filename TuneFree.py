@@ -83,7 +83,7 @@ try:  # 版本号统一放在 version.py，老版本打包里没有这个文件�
         SITE_URL, SITE_PRIMARY, SITE_PAGE,
     )
 except Exception:  # pragma: no cover
-    VERSION = "3.1.2"
+    VERSION = "3.1.3"
     DOWNLOAD_URL = ""
     SITE_URL = "https://zksbx.github.io/TuneFree/"
     SITE_PRIMARY = SITE_URL
@@ -3027,6 +3027,24 @@ class LyricPanel(QWidget):
         cx2, cy2 = fr.right() - 11, fr.center().y()
         p.drawLine(QPointF(cx2 - 3, cy2 - 1.6), QPointF(cx2, cy2 + 1.4))
         p.drawLine(QPointF(cx2 + 3, cy2 - 1.6), QPointF(cx2, cy2 + 1.4))
+
+        # 播放顺序（顺序 / 随机，点一下切）
+        orr = areas.get("order")
+        if orr is not None:
+            path = QPainterPath()
+            path.addRoundedRect(orr, 8, 8)
+            hot_order = getattr(self, "_hot", None) == "order"
+            p.setPen(Qt.NoPen)
+            p.fillPath(path, QColor(255, 255, 255, 40 if hot_order else 22))
+            seq = "顺序"
+            try:
+                seq = "随机" if win.player.shuffle() else "顺序"
+            except Exception:
+                pass
+            f.setPointSizeF(10.0)
+            p.setFont(f)
+            p.setPen(QColor(255, 255, 255, 205))
+            p.drawText(orr, Qt.AlignCenter, seq)
         p.restore()
 
     def _draw_left(self, p, m, areas):
@@ -3089,6 +3107,7 @@ class LyricPanel(QWidget):
         areas["play"] = QRectF(pad + 62, y, 38, 38)
         areas["next"] = QRectF(pad + 124, y + 3, 32, 32)
         areas["fmt"] = QRectF(pad + 188, y + 5, 84, 28)
+        areas["order"] = QRectF(pad + 280, y + 5, 68, 28)
         self._draw_controls(p, areas)
         p.restore()
 
@@ -3102,6 +3121,7 @@ class LyricPanel(QWidget):
         rect = QRectF(self.rect())
         self._paint_backdrop(p, rect)
         self._areas = {}
+        self.setMouseTracking(True)   # 不按键也能收到移动，悬停才变手型
 
         # ---- 右栏歌词 ----
         rx = m["right_x"]
@@ -3215,6 +3235,10 @@ class LyricPanel(QWidget):
             except Exception:
                 win.show_format_menu()
             return
+        if areas.get("order") is not None and areas["order"].contains(pos):
+            win.toggle_play_order()
+            self.update()
+            return
         if areas.get("seek") is not None and areas["seek"].contains(pos):
             self._emit_seek(pos.x())
             return
@@ -3226,7 +3250,7 @@ class LyricPanel(QWidget):
             return
         pos = event.position()
         hot = None
-        for key in ("play", "prev", "next", "fmt", "seek", "back"):
+        for key in ("play", "prev", "next", "fmt", "order", "seek", "back"):
             r = self._areas.get(key)
             if r is not None and r.contains(pos):
                 hot = key
@@ -3335,167 +3359,115 @@ class LyricStrip(QWidget):
             p.drawText(QRect(x, 12, width, 24), Qt.AlignCenter, cur)
 
 
-class ProgressToast(QFrame):
-    """转换进度浮窗。
+class TaskPanel(QWidget):
+    """曲库标题右侧的两条任务进度：解密、转码。
 
-    置顶、不激活、鼠标穿透 —— 它只是让人瞄一眼进度，不接管任何操作：
-    用户在转换期间照样能点列表、拖滚动条、切分类。
+    不再浮在窗口顶层 —— 放在页面里跟着卡片走，颜色从 PALETTE 取，
+    切主题自动跟着变，也不抢焦点、不挡操作。
     """
 
     def __init__(self, host):
-        super().__init__(None)
+        super().__init__(host)
         self.host = host
-        self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint
-                            | Qt.WindowStaysOnTopHint | Qt.WindowTransparentForInput)
-        self.setAttribute(Qt.WA_ShowWithoutActivating, True)
-        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        self.setAttribute(Qt.WA_TranslucentBackground, True)
-        self.setFixedSize(340, 108)
-        self.title = "正在准备…"
+        self.setFixedSize(372, 52)
+        self.dec_done = 0
+        self.dec_total = 0
+        self.conv_done = 0
+        self.conv_total = 0
         self.note = ""
-        self.phase = ""
-        self.done = 0
-        self.total = 0
-        self.ratio = 0.0
-        self.ok_count = -1
-        self._fail = 0
-        self._skip = 0
-        self._elapsed = 0.0
-        self._hide_timer = QTimer(self)
-        self._hide_timer.setSingleShot(True)
-        self._hide_timer.timeout.connect(self.hide)
+        self._active = False
+        self._done_timer = QTimer(self)
+        self._done_timer.setSingleShot(True)
+        self._done_timer.timeout.connect(self._hide_done)
 
     # ---- 数据 ----
     def begin(self, total=0):
-        self.title = "正在准备…"
-        self.phase = ""
-        self.done = 0
-        self.total = int(total or 0)
-        self.ratio = 0.0
-        self.ok_count = -1
-        self._fail = 0
-        self._skip = 0
-        self._elapsed = 0.0
-        self.note = ("共 %d 首，正在解密…" % self.total) if self.total else "正在读取文件…"
-        self._hide_timer.stop()
-        self.reposition()
-        self.show()
-        self.raise_()
+        self.dec_done = 0
+        self.dec_total = int(total or 0)
+        self.conv_done = 0
+        self.conv_total = 0
+        self.note = ""
+        self._active = True
+        self._done_timer.stop()
+        self.setVisible(True)
         self.update()
 
-    def set_progress(self, phase, done, total, note=""):
-        self.phase = phase or ""
-        self.done = int(done or 0)
-        self.total = int(total or 0)
-        self.ratio = (float(self.done) / self.total) if self.total else 0.0
-        self.title = ("正在转换 · %s" % self.phase) if self.phase else "正在转换"
-        if note:
-            self.note = note
-        self._hide_timer.stop()
-        if not self.isVisible():
-            self.reposition()
-            self.show()
+    def set_decrypt(self, done, total=0):
+        self.dec_done = int(done or 0)
+        if total:
+            self.dec_total = int(total)
+        self._active = True
+        self.setVisible(True)
         self.update()
 
-    def set_current(self, text):
-        if text:
-            self.note = text
-            self.update()
+    def set_convert(self, done, total=0):
+        self.conv_done = int(done or 0)
+        if total:
+            self.conv_total = int(total)
+        self._active = True
+        self.setVisible(True)
+        self.update()
 
     def say(self, text):
-        if text:
-            self.note = text
-            self.update()
-
-    def finish(self, ok, fail, skip, elapsed):
-        self.ok_count = int(ok or 0)
-        self._fail = int(fail or 0)
-        self._skip = int(skip or 0)
-        self._elapsed = float(elapsed or 0)
-        self.ratio = 1.0
-        self.title = "转换完成" if self._fail == 0 else "转换结束"
-        self.note = "成功 %d · 失败 %d · 跳过 %d · 用时 %s" % (
-            self.ok_count, self._fail, self._skip, format_time(self._elapsed))
-        if not self.isVisible():
-            self.reposition()
-            self.show()
+        self.note = text or ""
         self.update()
-        self._hide_timer.start(4500)
 
-    def reposition(self):
-        host = self.host
-        try:
-            geo = host.frameGeometry()
-        except Exception:
-            return
-        x = geo.right() - self.width() - 16
-        # 往上让开播放条，别挡住音量/歌词那排控件
-        y = geo.bottom() - self.height() - 92
-        screen = host.screen() if host is not None else None
-        if screen is not None:
-            avail = screen.availableGeometry()
-            x = max(avail.left() + 8, min(x, avail.right() - self.width() - 8))
-            y = max(avail.top() + 8, min(y, avail.bottom() - self.height() - 8))
-        self.move(x, y)
+    def finish(self, ok=0, fail=0, skip=0, elapsed=0.0):
+        self._active = False
+        if self.dec_total:
+            self.dec_done = self.dec_total
+        if self.conv_total:
+            self.conv_done = self.conv_total
+        self.note = ""
+        self.update()
+        self._done_timer.start(3500)
 
+    def _hide_done(self):
+        if not self._active:
+            self.setVisible(False)
+
+    @property
+    def ratio(self):
+        return (float(self.dec_done) / self.dec_total) if self.dec_total else 0.0
+
+    # ---- 绘制 ----
     def paintEvent(self, _event):
         c = PALETTE["dark" if getattr(self.host, "is_dark", False) else "light"]
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing, True)
-        pad = 9
-        card = QRectF(pad, pad, self.width() - pad * 2, self.height() - pad * 2)
-        for i in range(5, 0, -1):                 # 很轻的外阴影，让卡片浮起来
-            shadow = QPainterPath()
-            shadow.addRoundedRect(card.adjusted(-i, -i + 3, i, i + 3), 15 + i, 15 + i)
-            p.fillPath(shadow, QColor(0, 0, 0, 12))
-        body = QPainterPath()
-        body.addRoundedRect(card, 15, 15)
-        p.fillPath(body, QColor(c["panel"]))
-        p.setPen(QPen(QColor(c["line"]), 1))
-        p.setBrush(Qt.NoBrush)
-        p.drawPath(body)
+        fs = getattr(self.host, "font_scale", 1.0) or 1.0
+        width = self.width()
 
-        left = int(card.left()) + 16
-        width = int(card.width()) - 32
+        rows = (
+            ("解密", self.dec_done, self.dec_total, c["accent"]),
+            ("转码", self.conv_done, self.conv_total, c["ok"]),
+        )
+        for i, (label, done, total, ink) in enumerate(rows):
+            top = i * 27
+            lab_font = QFont(self.font())
+            lab_font.setPointSizeF(8.8 * fs)
+            lab_font.setWeight(QFont.DemiBold)
+            p.setFont(lab_font)
+            p.setPen(QColor(c["fg2"]))
+            p.drawText(QRect(0, top, 44, 17), Qt.AlignLeft | Qt.AlignVCenter, label)
 
-        title_font = QFont(self.font())
-        title_font.setPointSizeF(10)
-        title_font.setWeight(QFont.DemiBold)
-        p.setFont(title_font)
-        p.setPen(QColor(c["fg"]))
-        p.drawText(QRect(left, int(card.top()) + 12, width - 58, 20),
-                   Qt.AlignLeft | Qt.AlignVCenter, self.title)
+            num_font = QFont(self.font())
+            num_font.setPointSizeF(8.6 * fs)
+            p.setFont(num_font)
+            p.setPen(QColor(c["fg2"] if total and done >= total else c["sub2"]))
+            p.drawText(QRect(width - 104, top, 104, 17),
+                       Qt.AlignRight | Qt.AlignVCenter, "%d / %d" % (done, total))
 
-        pct_font = QFont(self.font())
-        pct_font.setPointSizeF(9)
-        p.setFont(pct_font)
-        p.setPen(QColor(c["sub"]))
-        pct = "100%" if self.ok_count >= 0 else "%d%%" % int(max(0.0, min(1.0, self.ratio)) * 100)
-        p.drawText(QRect(left + width - 58, int(card.top()) + 12, 58, 20),
-                   Qt.AlignRight | Qt.AlignVCenter, pct)
-
-        bar_y = int(card.top()) + 42
-        p.setPen(Qt.NoPen)
-        p.setBrush(QColor(c["chip"]))
-        p.drawRoundedRect(QRectF(left, bar_y, width, 6), 3, 3)
-        fill_w = width * max(0.0, min(1.0, self.ratio))
-        if fill_w > 0.5:
-            p.setBrush(QColor(c["ok"] if self.ok_count >= 0 else c["accent"]))
-            p.drawRoundedRect(QRectF(left, bar_y, fill_w, 6), 3, 3)
-
-        note_font = QFont(self.font())
-        note_font.setPointSizeF(8.6)
-        p.setFont(note_font)
-        p.setPen(QColor(c["sub"]))
-        note_rect = QRect(left, bar_y + 12, width, 18)
-        if self.ok_count < 0 and self.total:
-            counter = "%d / %d" % (self.done, self.total)
-            cw = p.fontMetrics().horizontalAdvance(counter) + 10
-            note_rect.setWidth(max(40, width - cw))
-            p.drawText(QRect(left + width - cw, bar_y + 12, cw, 18),
-                       Qt.AlignRight | Qt.AlignVCenter, counter)
-        note = p.fontMetrics().elidedText(self.note or "", Qt.ElideRight, note_rect.width())
-        p.drawText(note_rect, Qt.AlignLeft | Qt.AlignVCenter, note)
+            ratio = (float(done) / total) if total else 0.0
+            ratio = max(0.0, min(1.0, ratio))
+            bar = QRectF(0, top + 20, width, 4)
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(c["chip"]))
+            p.drawRoundedRect(bar, 2, 2)
+            if ratio > 0:
+                p.setBrush(QColor(ink))
+                p.drawRoundedRect(QRectF(bar.left(), bar.top(),
+                                         max(4.0, bar.width() * ratio), bar.height()), 2, 2)
 
 
 class NotifyToast(QFrame):
@@ -4181,6 +4153,10 @@ class TuneFreeWindow(QMainWindow):
         self._drag_active = False
         self._shortcuts = []
         self._settings_dlg = None
+        self._scan_worker = None
+        self._scan_token = 0
+        self._pending_input = ""
+        self._booted = False
 
         self.setup_ui()
         self._setup_shell()
@@ -4256,6 +4232,7 @@ class TuneFreeWindow(QMainWindow):
     def quit_app(self):
         self._really_quit = True
         self.close()
+        self._quit_loop()
 
     # ---------- 应用内快捷键 ----------
     def _setup_shortcuts(self):
@@ -4364,11 +4341,16 @@ class TuneFreeWindow(QMainWindow):
                 pass
         return False
 
-    def _notify_run_done(self, ok, fail, skip, elapsed):
+    def _notify_run_done(self, ok, fail, skip, elapsed, paused=False):
         if not self.ui_notice:
             return
         if self.isVisible() and not self.isMinimized() and self.isActiveWindow():
             return          # 人就在窗口前面，完成对话框已经说过了
+        if paused:
+            self.notify_system("转换已暂停",
+                               "QQ音乐内存用满 · 成功 %d · 跳过 %d · 用时 %s"
+                               % (ok, skip, format_time(elapsed)))
+            return
         text = "成功 %d · 失败 %d · 跳过 %d · 用时 %s" % (ok, fail, skip, format_time(elapsed))
         self.notify_system("转换完成", text)
 
@@ -4406,7 +4388,7 @@ class TuneFreeWindow(QMainWindow):
         if self._runner is not None:
             self.notify("正在转换，等这一轮跑完再换文件夹")
             return
-        self.set_input_dir(folder)
+        self.set_input_dir(folder, block=False)
 
     def _set_drop_hint(self, on):
         if on == self._drag_active:
@@ -4596,9 +4578,9 @@ class TuneFreeWindow(QMainWindow):
 
         self.build_options_panel()
 
-        self.toast = ProgressToast(self)
         self._run_total = 0
         self._run_done = 0
+        self._run_summary_seen = False
         self.notify_toast = NotifyToast(self)
 
     def notify(self, text, duration=3000):
@@ -4685,19 +4667,28 @@ class TuneFreeWindow(QMainWindow):
     def build_hero(self):
         hero = QWidget()
         hero.setObjectName("pageHero")
-        lay = QVBoxLayout(hero)
-        lay.setContentsMargins(26, 20, 26, 0)
-        lay.setSpacing(0)
+        row = QHBoxLayout(hero)
+        row.setContentsMargins(26, 20, 26, 0)
+        row.setSpacing(18)
+        left = QVBoxLayout()
+        left.setContentsMargins(0, 0, 0, 0)
+        left.setSpacing(0)
         self.hero_eyebrow = QLabel("LOCAL LIBRARY")
         self.hero_eyebrow.setObjectName("heroEyebrow")
-        lay.addWidget(self.hero_eyebrow)
+        left.addWidget(self.hero_eyebrow)
         self.hero_title = QLabel("我的曲库")
         self.hero_title.setObjectName("heroTitle")
-        lay.addWidget(self.hero_title)
-        lay.addSpacing(7)
+        left.addWidget(self.hero_title)
+        left.addSpacing(7)
         self.count_label = QLabel("")
         self.count_label.setObjectName("heroMeta")
-        lay.addWidget(self.count_label)
+        left.addWidget(self.count_label)
+        row.addLayout(left, 0)
+        row.addStretch(1)
+        # 标题右侧这块空地放任务进度：解密、转码两条同时走
+        self.task_panel = TaskPanel(self)
+        self.task_panel.setVisible(False)
+        row.addWidget(self.task_panel, 0, Qt.AlignVCenter)
         return hero
 
     def build_chips(self):
@@ -4824,11 +4815,14 @@ class TuneFreeWindow(QMainWindow):
         line2.setFixedHeight(1)
         lay.addWidget(line2)
 
+        self.cb_no_mp3 = QCheckBox("只解密，不转码")
+        self.cb_no_mp3.setToolTip("解出 FLAC / OGG 就停，不生成 MP3")
         self.cb_keep_flac = QCheckBox("保留解密后的 FLAC")
         self.cb_keep_flac.setToolTip("不勾就只留 MP3，勾上会同时留下中间文件")
         self.cb_force = QCheckBox("重新生成已存在的 MP3")
         self.cb_force.setToolTip("默认跳过已经转好的，勾上则覆盖重转")
-        for cb in (self.cb_keep_flac, self.cb_force):
+        self.cb_no_mp3.stateChanged.connect(self.on_no_mp3_changed)
+        for cb in (self.cb_no_mp3, self.cb_keep_flac, self.cb_force):
             cb.stateChanged.connect(self.on_options_changed)
             lay.addWidget(cb)
 
@@ -4854,11 +4848,17 @@ class TuneFreeWindow(QMainWindow):
                 return (digits or "320") + "k"
         return "320k"
 
+    def on_no_mp3_changed(self, *_args):
+        """只解密模式没有转码中间文件，「保留 FLAC」那一项就没有意义了。"""
+        self.cb_keep_flac.setEnabled(not self.cb_no_mp3.isChecked())
+        self.on_options_changed()
+
     def on_options_changed(self, *_args):
         try:
             self.settings.setValue("ui/bitrate", self.current_bitrate())
             self.settings.setValue("ui/keep_flac", "1" if self.cb_keep_flac.isChecked() else "0")
             self.settings.setValue("ui/force", "1" if self.cb_force.isChecked() else "0")
+            self.settings.setValue("ui/no_mp3", "1" if self.cb_no_mp3.isChecked() else "0")
         except Exception:
             pass
 
@@ -4970,6 +4970,14 @@ class TuneFreeWindow(QMainWindow):
         self.fmt_btn.clicked.connect(lambda: self.show_format_menu())
         ex.addWidget(self.fmt_btn)
 
+        self.order_btn = QPushButton("顺序")
+        self.order_btn.setObjectName("ghostBtn")
+        self.order_btn.setFixedHeight(28)
+        self.order_btn.setCursor(Qt.PointingHandCursor)
+        self.order_btn.setToolTip("播放顺序：顺序播放 / 随机播放（点一下切换）")
+        self.order_btn.clicked.connect(self.toggle_play_order)
+        ex.addWidget(self.order_btn)
+
         self.vol_icon = QLabel()
         self.vol_icon.setObjectName("volIcon")
         self.vol_icon.setFixedSize(18, 18)
@@ -5038,7 +5046,7 @@ class TuneFreeWindow(QMainWindow):
                 continue
             target = widget.viewport() if hasattr(widget, "viewport") else widget
             target.update()
-        for widget in (getattr(self, "toast", None), getattr(self, "notify_toast", None)):
+        for widget in (getattr(self, "task_panel", None), getattr(self, "notify_toast", None)):
             if widget is not None:
                 widget.update()
         shell = self.centralWidget()
@@ -5287,8 +5295,10 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
                   "192k": self.rb_192, "128k": self.rb_128}
         picked = rb_map.get(bitrate, self.rb_320)
         picked.setChecked(True)
+        self.cb_no_mp3.setChecked(str(s.value("ui/no_mp3", "0")) in ("1", "true", "True"))
         self.cb_keep_flac.setChecked(str(s.value("ui/keep_flac", "0")) in ("1", "true", "True"))
         self.cb_force.setChecked(str(s.value("ui/force", "0")) in ("1", "true", "True"))
+        self.cb_keep_flac.setEnabled(not self.cb_no_mp3.isChecked())
 
         # 第 11 节的行为开关：托盘常驻、完成通知、全局媒体键、迷你播放器
         self.ui_tray = str(s.value("ui/tray", "0")) in ("1", "true", "True")
@@ -5296,9 +5306,19 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         self.play_hotkeys = str(s.value("play/hotkeys", "1")) in ("1", "true", "True")
         self.ui_mini = str(s.value("ui/mini", "0")) in ("1", "true", "True")
 
+        # 播放顺序：顺序 / 随机
+        try:
+            self.player.set_shuffle(str(s.value("play/shuffle", "0")) in ("1", "true", "True"))
+            self._sync_order_btn()
+        except AttributeError:
+            pass
+
         last = str(s.value("ui/last_input", ""))
         if last and os.path.isdir(last):
-            self.set_input_dir(last, remember=False)
+            # 只把路径摆上，扫描留到窗口显示之后（见 showEvent），
+            # 否则几百首歌会在窗口出现前干等好几秒
+            self._pending_input = last
+            self.set_input_dir(last, remember=False, scan=False)
 
         auto = str(s.value("ui/check_update", "1"))
         if auto in ("1", "true", "True"):
@@ -5311,6 +5331,7 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         s.setValue("ui/font_scale", self.font_scale)
         s.setValue("ui/lyric_font_scale", self.lyric_font_scale)
         s.setValue("ui/bitrate", self.current_bitrate())
+        s.setValue("ui/no_mp3", "1" if self.cb_no_mp3.isChecked() else "0")
         s.setValue("ui/keep_flac", "1" if self.cb_keep_flac.isChecked() else "0")
         s.setValue("ui/force", "1" if self.cb_force.isChecked() else "0")
         s.setValue("ui/last_input", self.input_dir)
@@ -5319,6 +5340,10 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         s.setValue("ui/notice", "1" if self.ui_notice else "0")
         s.setValue("play/hotkeys", "1" if self.play_hotkeys else "0")
         s.setValue("ui/mini", "1" if self.ui_mini else "0")
+        try:
+            s.setValue("play/shuffle", "1" if self.player.shuffle() else "0")
+        except AttributeError:
+            pass
         s.sync()
 
     @staticmethod
@@ -5439,7 +5464,8 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
     # ================= 文件名格式 =================
     def _apply_name_format(self, tracks):
         for t in tracks or []:
-            if getattr(t, "is_out", False):
+            if getattr(t, "is_out", False) or getattr(t, "tag_meta", False):
+                # 标签里已经有歌名/歌手，别再按文件名覆盖
                 continue
             title, artist = split_name_by_format(t.name, self.name_format)
             t.title = title
@@ -5458,9 +5484,9 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         start = self.input_dir or str(Path.home())
         path = QFileDialog.getExistingDirectory(self, "选择含 .mflac / .mgg 的文件夹", start)
         if path:
-            self.set_input_dir(path)
+            self.set_input_dir(path, block=False)
 
-    def set_input_dir(self, path, remember=True):
+    def set_input_dir(self, path, remember=True, scan=True, block=True):
         self.input_dir = os.path.abspath(path)
         name = os.path.basename(self.input_dir.rstrip("\\/")) or self.input_dir
         fm = self.folder_btn.fontMetrics()
@@ -5471,14 +5497,34 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
                 self.settings.setValue("ui/last_input", self.input_dir)
             except Exception:
                 pass
-        self.start_scan()
+        if scan:
+            self.start_scan(block=block)
 
-    def start_scan(self):
+    def start_scan(self, block=True):
+        """扫目录。block=True 时原地扫完（测试和手动重扫用），
+        否则丢给后台线程 —— 启动时窗口先出来，列表再慢慢填。
+        """
         if not self.input_dir or not os.path.isdir(self.input_dir):
             return
+        self._scan_token += 1
+        token = self._scan_token
         self.count_label.setText("正在扫描…")
+        if block:
+            self._scan_sync(token)
+            return
         QApplication.processEvents()
+        self.start_btn.setEnabled(False)
+        self._stop_thread(self._scan_worker, 300)
+        worker = ScanWorker(self.input_dir, self.name_format,
+                            self.cache_path("covers"), self)
+        worker.progress.connect(
+            lambda done, total, part, t=token: self._on_scan_progress(t, done, total, part))
+        worker.finished_scan.connect(
+            lambda tracks, ses, err, t=token: self._on_scan_done(t, tracks, ses, err))
+        self._scan_worker = worker
+        worker.start()
 
+    def _scan_sync(self, token):
         cover_dir = self.cache_path("covers")
         session = getattr(self, "session", None)
         try:
@@ -5494,20 +5540,41 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
                     session = None
             except Exception:
                 session = None
-
         try:
             tracks = scanner.scan(self.input_dir, session=session, cover_dir=cover_dir,
-                                 name_format=self.name_format)
+                                  name_format=self.name_format)
         except Exception as e:
-            self.count_label.setText("扫描失败：%s" % e)
-            tracks = []
-        finally:
-            if session is not None and session.connected:
-                # 留着这个会话：转码和播放解密都直接复用，省一次注入
-                self._scan_session = session
-                self.set_conn_state(True, "已连接 QQ 音乐")
-                self.session = session
+            self._finish_scan(token, [], session, str(e) or "扫描失败")
+            return
+        self._finish_scan(token, tracks, session, "")
 
+    def _on_scan_progress(self, token, done, total, part):
+        if token != self._scan_token:
+            return
+        self.count_label.setText("正在扫描… %d / %d" % (done, total))
+        if part:
+            self.tracks = list(part)
+            self.refresh_view(rebuild_side=False)
+            self.count_label.setText("正在扫描… %d / %d" % (done, total))
+
+    def _on_scan_done(self, token, tracks, session, err):
+        if token != self._scan_token:
+            return
+        self._scan_worker = None
+        self._finish_scan(token, tracks, session, err)
+
+    def _finish_scan(self, token, tracks, session, err):
+        """扫描收尾：结果的落库、封面、勾选、刷新都在主线程做。"""
+        if token != self._scan_token:
+            return
+        if err:
+            self.count_label.setText("扫描失败：%s" % err)
+            tracks = tracks or []
+        if session is not None and getattr(session, "connected", False):
+            # 留着这个会话：转码和播放解密都直接复用，省一次注入
+            self._scan_session = session
+            self.set_conn_state(True, "已连接 QQ 音乐")
+            self.session = session
         self.tracks = tracks
         self.invalidate_lossless()      # 换了目录，缓存里的「有没有无损」全部作废
         self.mark_existing_outputs()
@@ -5519,6 +5586,8 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         self.checked = {t.path for t in tracks if t.status != "failed"}
         self.set_status_visible(False)
         self.refresh_view()
+        if getattr(self, "_runner", None) is None:
+            self.start_btn.setEnabled(True)
         QTimer.singleShot(200, self.load_covers_online)
 
     def lookup_cover(self, track):
@@ -5564,8 +5633,27 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
             style.unpolish(self.conn_pill)
             style.polish(self.conn_pill)
 
+    def fill_local_covers(self):
+        """先用 QQ 音乐自己的图片缓存补封面（离线、只读，不写任何文件）。"""
+        empty = [t for t in self.tracks if not t.cover_path]
+        if not empty:
+            return
+        try:
+            import coverart
+        except Exception:
+            return
+        changed = False
+        for track in empty[:400]:
+            path = coverart.find_cover(track.artist, track.album)
+            if path:
+                track.cover_path = path
+                changed = True
+        if changed:
+            self.view.viewport().update()
+
     def load_covers_online(self):
         """后台把封面补齐（QQ 音乐的文件里没有封面，只能联网找）。"""
+        self.fill_local_covers()
         pending = [t for t in self.tracks if not t.cover_path]
         if not pending:
             return
@@ -5607,8 +5695,13 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
             return ""
         try:
             stem = Path(track.path).stem
-            folder = os.path.join(self.input_dir or "", "output", "flac")
-            return os.path.join(folder, stem + track.plain_ext)
+            root = os.path.join(self.input_dir or "", "output")
+            name = stem + track.plain_ext
+            for folder in (os.path.join(root, "flac"), os.path.join(root, "ogg")):
+                candidate = os.path.join(folder, name)
+                if os.path.exists(candidate):
+                    return candidate
+            return os.path.join(root, "flac", name)
         except (OSError, ValueError):
             return ""
 
@@ -6382,7 +6475,10 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
             self._runner.cancel()
             self.start_btn.setText("正在停止…")
             self.start_btn.setEnabled(False)
-            self.toast.say("正在停止…")
+            self.task_panel.say("正在停止…")
+            return
+        if self._scan_worker is not None and self._scan_worker.isRunning():
+            self.notify("还在扫描文件夹，等列表出来再开始", 2200)
             return
         if not self.input_dir or not os.path.isdir(self.input_dir):
             self.choose_folder()
@@ -6406,6 +6502,7 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
             bitrate=self.current_bitrate(),
             session=getattr(self, "_scan_session", None),
             keep_flac=self.cb_keep_flac.isChecked(),
+            no_mp3=self.cb_no_mp3.isChecked(),
             force=self.cb_force.isChecked(),
             on_event=self.emit_event,
         )
@@ -6421,7 +6518,8 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
 
         self._run_total = len(targets)
         self._run_done = 0
-        self.toast.begin(self._run_total)
+        self.task_panel.begin(self._run_total)
+        self._run_summary_seen = False
 
     def emit_event(self, kind, payload):
         self.bridge.event.emit(kind, payload)
@@ -6456,23 +6554,25 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
                     track.status = "skipped"
                 else:
                     track.status = "working"
-                if state == "working":
-                    self.toast.set_current(track.name or Path(track.path).name)
-                elif state in ("done", "fail", "skip"):
+                if state in ("done", "fail", "skip"):
                     self._run_done += 1
-                    self.toast.set_progress("转换", self._run_done, self._run_total)
                 if payload.get("message"):
                     track.message = payload["message"]
                 if state == "done":
                     mp3 = os.path.join(self.input_dir, "output", "mp3",
                                        Path(track.path).stem + ".mp3")
+                    if not os.path.exists(mp3):
+                        # 只解密模式：输出就是解出来的 FLAC / OGG
+                        plain = self.lossless_path(track)
+                        if plain and os.path.exists(plain):
+                            mp3 = plain
                     if os.path.exists(mp3):
                         track.output = mp3
                         try:
                             track.output_size = os.path.getsize(mp3)
                         except OSError:
                             track.output_size = 0
-                        if not track.duration:
+                        if not track.duration and mp3.lower().endswith(".mp3"):
                             track.duration = metainfo.mp3_duration(mp3)
                 self.model.ping(track)
                 self.update_count()
@@ -6498,7 +6598,10 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         total = payload.get("total", 0)
         if total:
             self.show_progress("%s %d/%d" % (phase, done, total))
-            self.toast.set_progress(phase, done, total)
+            if phase == "转码":
+                self.task_panel.set_convert(done, total)
+            else:
+                self.task_panel.set_decrypt(done, total)
 
     def on_summary(self, summary):
         self.set_status_visible(False)
@@ -6506,11 +6609,16 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         fail = summary.get("fail", 0)
         skip = summary.get("skip", 0)
         elapsed = summary.get("elapsed", 0)
-        self.show_progress("完成：成功 %d，失败 %d，跳过 %d，用时 %.1f 秒" % (ok, fail, skip, elapsed))
-        self.toast.finish(ok, fail, skip, elapsed)
+        paused = bool(summary.get("paused"))
+        reason = summary.get("pause_reason", "")
+        if paused:
+            self.show_progress("已暂停：成功 %d，跳过 %d，用时 %.1f 秒" % (ok, skip, elapsed))
+        else:
+            self.show_progress("完成：成功 %d，失败 %d，跳过 %d，用时 %.1f 秒" % (ok, fail, skip, elapsed))
+        self.task_panel.finish(ok, fail, skip, elapsed)
         self.flush_side_refresh()      # 结算时把侧栏计数一次刷到位
-        self.show_completion_dialog(ok, fail, skip, elapsed)
-        self._notify_run_done(ok, fail, skip, elapsed)
+        self.show_completion_dialog(ok, fail, skip, elapsed, paused=paused, reason=reason)
+        self._notify_run_done(ok, fail, skip, elapsed, paused=paused)
 
     def on_run_finished(self):
         self.start_btn.setText("开始转换")
@@ -6518,20 +6626,23 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         self.opt_btn.setEnabled(True)
         self._runner_thread = None
         self.flush_side_refresh()      # 中途停止（没 summary）也要把计数补上
-        if self.toast.ok_count < 0:        # 中途停止、没等到 summary：别把浮窗留在屏幕上
-            self.toast.hide()
+        if not getattr(self, "_run_summary_seen", False):
+            self.task_panel.finish()       # 中途停止、没等到 summary：别让进度条一直挂着
 
-    def show_completion_dialog(self, ok, fail, skip, elapsed):
-        if ok == 0 and fail == 0:
+    def show_completion_dialog(self, ok, fail, skip, elapsed, paused=False, reason=""):
+        if ok == 0 and fail == 0 and not paused:
             return
         dlg = self.polish_dialog(QDialog(self))
-        dlg.setWindowTitle("处理完成")
+        dlg.setWindowTitle("任务已暂停" if paused else "处理完成")
         dlg.setMinimumWidth(420)
         lay = QVBoxLayout(dlg)
         lay.setContentsMargins(22, 20, 22, 18)
         lay.setSpacing(10)
 
-        title = QLabel("全部搞定" if fail == 0 else "处理完成，有 %d 首没成功" % fail)
+        if paused:
+            title = QLabel("QQ音乐的内存用满了，这轮先停下")
+        else:
+            title = QLabel("全部搞定" if fail == 0 else "处理完成，有 %d 首没成功" % fail)
         font = title.font()
         font.setPointSizeF(12)
         font.setWeight(QFont.DemiBold)
@@ -6542,7 +6653,19 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         info.setObjectName("metaText")
         lay.addWidget(info)
 
-        if fail:
+        if paused:
+            detail = QLabel(reason or "QQ音乐的内存用满了（32 位进程地址空间上限约 4GB）。")
+            detail.setWordWrap(True)
+            detail.setObjectName("drawerHint")
+            lay.addWidget(detail)
+            tips = QLabel("怎么办：\n"
+                          "1. 完全退出 QQ 音乐（任务栏图标也右键退出）\n"
+                          "2. 重新打开并登录，回到这里点「开始转换」\n"
+                          "3. 已经转换好的文件会自动跳过，不会从头再来")
+            tips.setWordWrap(True)
+            tips.setObjectName("drawerHint")
+            lay.addWidget(tips)
+        elif fail:
             reasons = []
             for track in self.tracks:
                 if track.status != "failed":
@@ -6565,7 +6688,7 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
 
         row = QHBoxLayout()
         row.addStretch(1)
-        if fail:
+        if fail or paused:
             log_btn = QPushButton("打开日志文件")
             log_btn.setObjectName("secondaryBtn")
             log_btn.clicked.connect(lambda: self.open_path(log_path()))
@@ -6716,6 +6839,33 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
 
     def player_prev(self):
         self.player.prev()
+
+    def toggle_play_order(self):
+        """顺序 / 随机 一键切换，状态写盘。"""
+        try:
+            shuffle = bool(self.player.toggle_shuffle())
+        except AttributeError:
+            shuffle = False
+        self._sync_order_btn()
+        try:
+            self.settings.setValue("play/shuffle", "1" if shuffle else "0")
+            self.settings.sync()
+        except Exception:
+            pass
+        self.notify("随机播放" if shuffle else "顺序播放", 1400)
+
+    def _sync_order_btn(self):
+        btn = getattr(self, "order_btn", None)
+        if btn is None:
+            return
+        try:
+            shuffle = bool(self.player.shuffle())
+        except AttributeError:
+            shuffle = False
+        btn.setText("随机" if shuffle else "顺序")
+        btn.setToolTip("当前：%s（点一下切到%s）" % (
+            "随机播放" if shuffle else "顺序播放",
+            "顺序播放" if shuffle else "随机播放"))
 
     def player_next(self):
         self.player.next()
@@ -6927,6 +7077,18 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
             body.setText("<div style='line-height:140%%;'>%s</div>" % "<br>".join(lines))
             lay.addWidget(body)
 
+        accent = PALETTE["dark" if self.is_dark else "light"]["accent"]
+        hint = QLabel(
+            '下载要连 GitHub，慢的话可以先用加速器再点「立即更新」：'
+            '<a href="https://steampp.net/" style="color:%s">steampp.net</a>' % accent
+        )
+        hint.setObjectName("metaText")
+        hint.setTextFormat(Qt.RichText)
+        hint.setOpenExternalLinks(True)
+        hint.setWordWrap(True)
+        hint.setMinimumWidth(420)
+        lay.addWidget(hint)
+
         self._update_bar = QProgressBar()
         self._update_bar.setObjectName("updateBar")
         self._update_bar.setRange(0, 100)
@@ -7033,8 +7195,6 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
             self._update_go.setEnabled(True)
             return
         self.save_settings()
-        if getattr(self, "toast", None) is not None:
-            self.toast.hide()
         QTimer.singleShot(500, lambda: self._run_update_script(script))
 
     def _run_update_script(self, script):
@@ -7064,22 +7224,30 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
         super().resizeEvent(event)
         if self.lyric_panel.isVisible():
             self.lyric_panel.setGeometry(self.lyric_rect())
-        if getattr(self, "toast", None) is not None and self.toast.isVisible():
-            self.toast.reposition()
 
     def moveEvent(self, event):
         super().moveEvent(event)
-        if getattr(self, "toast", None) is not None and self.toast.isVisible():
-            self.toast.reposition()
 
     def showEvent(self, event):
         super().showEvent(event)
         apply_titlebar_theme(self, self.is_dark)
+        if not self._booted:
+            self._booted = True
+            pending = self._pending_input
+            self._pending_input = ""
+            if pending:
+                QTimer.singleShot(0, lambda p=pending: self._boot_scan(p))
+
+    def _boot_scan(self, path):
+        """首次显示后补跑上次的目录；用户已经手动换过目录就不再重复。"""
+        if self.tracks:
+            return
+        if self.input_dir and os.path.abspath(self.input_dir) != os.path.abspath(path):
+            return
+        self.set_input_dir(path, remember=False, block=False)
 
     def hideEvent(self, event):
         super().hideEvent(event)
-        if getattr(self, "toast", None) is not None:
-            self.toast.hide()
 
     def closeEvent(self, event):
         # 托盘常驻：关窗口只是收起来，扫描/转换还在后台跑
@@ -7097,22 +7265,111 @@ QPushButton#swatchBtn { border-radius: 8px; border: 1px solid %(line)s; }
             self.save_settings()
         except Exception:
             pass
-        self.player.stop()
-        if getattr(self, "toast", None) is not None:
-            self.toast.hide()
-        if self._runner is not None:
-            self._runner.cancel()
-        if self._runner_thread is not None and self._runner_thread.isRunning():
-            self._runner_thread.wait(1500)
-        if getattr(self, "_attach_thread", None) is not None and self._attach_thread.isRunning():
-            self._attach_thread.wait(1500)
+        try:
+            self.player.stop()
+        except Exception:
+            pass
+        # 后台线程得先停干净：转码线程在等 ffmpeg，
+        # 只 wait(1500) 等不到就会把进程吊在后台。
+        self._shutdown_workers()
         super().closeEvent(event)
+        if self._really_quit:
+            self._quit_loop()
+
+    def _shutdown_workers(self):
+        """退出前把工作线程停干净，超时就掐掉。"""
+        runner = getattr(self, "_runner", None)
+        if runner is not None:
+            try:
+                runner.cancel()
+            except Exception:
+                pass
+        self._stop_thread(getattr(self, "_scan_worker", None), 800)
+        self._stop_thread(getattr(self, "_runner_thread", None), 1500)
+        self._stop_thread(getattr(self, "_attach_thread", None), 1000)
+
+    @staticmethod
+    def _stop_thread(thread, timeout):
+        """等线程自己退；等不到就 terminate，不能让它拖着进程。"""
+        if thread is None:
+            return
+        try:
+            if not thread.isRunning():
+                return
+            if thread.wait(timeout):
+                return
+            thread.terminate()
+            thread.wait(800)
+        except RuntimeError:
+            pass
+
+    def _quit_loop(self):
+        """关窗口不一定能结束事件循环（托盘图标、子窗口），这里显式收尾。"""
+        app = QApplication.instance()
+        if app is None:
+            return
+        try:
+            app.quit()
+        except Exception:
+            pass
 
 
 class RunnerBridge(QObject):
     """把工作线程里的事件转成 Qt 信号（跨线程自动排队）。"""
 
     event = Signal(str, object)
+
+
+class ScanWorker(QThread):
+    """后台扫描：不碰界面，进度和结果都靠信号回主线程。
+
+    以前扫描卡在 show() 之前，歌一多就要干等好几秒窗口才出来；
+    现在窗口先显示，列表按每 20 首一批慢慢填。
+    """
+
+    progress = Signal(int, int, object)          # 已完成, 总数, 已扫到的 track
+    finished_scan = Signal(object, object, str)  # tracks, session, 错误信息
+
+    CHUNK = 20
+
+    def __init__(self, input_dir, name_format, cover_dir, parent=None):
+        super().__init__(parent)
+        self.input_dir = input_dir
+        self.name_format = name_format
+        self.cover_dir = cover_dir
+        self.session = None
+        self._partial = []
+        self._last = 0
+
+    def run(self):
+        tracks = []
+        err = ""
+        try:
+            import session as qsession
+            try:
+                ses = qsession.QQMusicSession(qsession.default_hook_path())
+                if not ses.attach():
+                    ses = None
+            except Exception:
+                ses = None
+            self.session = ses
+            tracks = scanner.scan(
+                self.input_dir, session=ses, cover_dir=self.cover_dir,
+                name_format=self.name_format,
+                on_item=self._item, on_progress=self._tick,
+            )
+        except Exception as e:
+            err = str(e) or "扫描失败"
+            tracks = self._partial
+        self.finished_scan.emit(tracks, self.session, err)
+
+    def _item(self, track):
+        self._partial.append(track)
+
+    def _tick(self, done, total):
+        if done - self._last >= self.CHUNK or done == total:
+            self._last = done
+            self.progress.emit(done, total, list(self._partial))
 
 
 class AttachThread(QThread):

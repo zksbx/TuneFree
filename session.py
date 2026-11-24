@@ -10,11 +10,17 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 
 import frida
 
 _HOOK_FILE = "hook_qq_music.js"
 _TARGET = "QQMusic.exe"
+
+# frida 的本地设备是进程级全局对象，两个线程同时 attach 会直接访问冲突崩溃
+# （启动时的自动扫描 + 用户马上点文件夹，就会撞上）。RPC 也用同一把锁，
+# 免得转码线程和界面线程同时往一个 session 里塞调用。
+_LOCK = threading.RLock()
 
 
 def _pid_alive(pid):
@@ -122,6 +128,10 @@ class QQMusicSession:
     # ---------------- 连接 ----------------
     def attach(self):
         """建立连接并加载 hook；成功返回 True，失败把原因留在 last_error。"""
+        with _LOCK:
+            return self._attach_inner()
+
+    def _attach_inner(self):
         self.detach()
         try:
             self._session = frida.attach(_TARGET)
@@ -192,6 +202,10 @@ class QQMusicSession:
         return self.attach()
 
     def detach(self):
+        with _LOCK:
+            self._detach_inner()
+
+    def _detach_inner(self):
         script, session = self._script, self._session
         self._script = None
         self._session = None
@@ -211,6 +225,10 @@ class QQMusicSession:
     # ---------------- RPC ----------------
     def call(self, name, *args):
         """调用 hook 里的方法；传输层错误时重连并重试一次。"""
+        with _LOCK:
+            return self._call_inner(name, *args)
+
+    def _call_inner(self, name, *args):
         if not self.ensure():
             raise SessionError(self.last_error or "未连接到 QQ音乐进程")
 
@@ -241,6 +259,21 @@ class QQMusicSession:
     def decrypt_file(self, src, dst):
         """老写法：解密结果先回传到 Frida 再写盘，只作兜底。"""
         return self.call("decryptfile", src, dst)
+
+    def decrypt_whole(self, src, dst):
+        """整块解密后写盘：流式分块解出来不对时回退用。"""
+        return self.call("decryptwhole", src, dst)
+
+    def can_alloc(self, size=192 * 1024 * 1024):
+        """问一下 QQ音乐进程还能不能申请这么大一块内存。
+
+        旧版 hook 不支持这个方法时返回 True（当作有余量），
+        免得老版本 QQ音乐配新程序时把任务卡住。
+        """
+        try:
+            return bool(self.call("probealloc", int(size)))
+        except Exception:
+            return True
 
     def read_head(self, src, limit):
         data = self.call("readhead", src, int(limit))

@@ -241,7 +241,7 @@
     </div>
     <p class="cta-hint">The mirror is on <b>Lanzou</b> — no login, no sign-up. Access code <span class="pwd-pill">0211</span> is copied for you when you click.</p>
     <p class="meta">
-      <span id="verText">Latest v3.1.2</span>
+      <span id="verText">Latest v3.1.3</span>
     </p>
   </div>
 </header>
@@ -312,18 +312,19 @@
     <p class="sub">GitHub is recommended — always the newest and the cleanest. Use the mirror when GitHub is unreachable.</p>
     <div class="dl">
       <div class="dl-main">
-        <div class="ver"><b id="verNum">v3.1.2</b><span class="badge">Latest</span></div>
+        <div class="ver"><b id="verNum">v3.1.3</b><span class="badge">Latest</span></div>
         <div class="filesize" id="sizeText">Windows 10 / 11 64-bit · Portable · Unzip and run · 73.2 MB download</div>
         <a class="btn btn-primary" id="dlPrimary" href="https://github.com/zksbx/TuneFree/releases/latest" target="_blank" rel="noopener">⬇ Download from GitHub</a>
         <ul class="changelog">
-          <li>New interface throughout: no more sidebar — top bar, library card and player bar, with filter pills and an artist filter</li>
-          <li>New immersive player page: the cover tints the whole page, cover and controls on the left, bilingual lyrics on the right</li>
-          <li>New mini player, global media keys, tray mode and completion notifications; drop a folder on the window to import it</li>
-          <li>Switch the playing version of a song (MP3 / FLAC / OGG) from the player bar; Settings is now a sidebar with grouped cards</li>
+          <li>Fixed batch conversion dying after ~100 songs: every decrypt used to take a whole song's memory inside QQ Music; it now streams in 4MB chunks with a fixed footprint</li>
+          <li>Free address space is checked every ten tracks, and the run pauses with a clear message before it runs out — already-converted files are skipped</li>
+          <li>Reading file headers during scan no longer leaks memory, so large libraries stay stable; out-of-memory errors are no longer reported as quality problems</li>
+          <li>Offline, Help and Support now open the built-in help page shipped with the app</li>
+          <li>The new interface, immersive player page, mini player, media keys and tray mode all landed in this cycle — see the feature grid above</li>
         </ul>
         <p class="meta" style="text-align:left;margin-top:14px">
           Older builds live on the <a href="https://github.com/zksbx/TuneFree/releases" target="_blank" rel="noopener">Releases page</a>.
-          The app tells you when an update is out, so there is no need to check back here.
+          The app tells you when an update is out, so there is no need to check back here. Downloads come from GitHub — if that is slow, use an <a href="https://steampp.net/" target="_blank" rel="noopener">accelerator</a> first.
         </p>
       </div>
       <div class="dl-side">
@@ -389,7 +390,7 @@
           <li><b>Song folder</b>: the folder holding <code>.mflac</code> / <code>.mgg</code>; click the folder button on the left of the top bar to switch, or drop a folder on the window.</li>
           <li><b>Filter pills</b>: All / undecrypted / MFLAC / MGG / FLAC / OGG / MP3, with live counts; the <b>Filter</b> pill on the right narrows by artist.</li>
           <li><b>List</b>: title, artist, format pills, size, duration. Sorting lives on the right of the toolbar; double-click to preview, right-click or use the row’s ⋯ to remove a row.</li>
-          <li><b>Convert options</b>: MP3 bitrate, keep the decrypted lossless files, re-encode existing MP3s.</li>
+          <li><b>Convert options</b>: MP3 bitrate, keep the decrypted lossless files, decrypt only (no encoding), re-encode existing MP3s.</li>
           <li><b>Settings</b>: five pages in a left sidebar — Look (schemes, custom colours, font sizes), Format names, Behavior (tray, notifications, media keys, mini player), Cache, About.</li>
         </ul>
       </div>
@@ -473,6 +474,13 @@
     </details>
 
     <details>
+      <summary>Batch conversion errors out or stops after ~100 songs</summary>
+      <p>QQ Music is a 32-bit process, so it has roughly 4GB of address space. Older builds allocated a whole song's worth of memory inside that process for every decrypt, so ~100 SQ files exhausted it — and the resulting error looked like a file or quality problem.</p>
+      <p>Since 3.1.3 decryption streams in 4MB chunks (read 4MB, write 4MB, reuse the buffer), so the footprint no longer scales with track size. The runner also probes free address space every ten tracks and pauses with a clear message before things go wrong.</p>
+      <p>If you see that message: fully quit QQ Music (right-click its tray icon and exit too) → reopen and sign in → hit "Start" again. Files already converted are skipped.</p>
+    </details>
+
+    <details>
       <summary>Mac / Linux support?</summary>
       <p>The Windows build published here is the only official release — the QQ Music client it injects into exists only on Windows.</p>
       <p>The <b>macOS version is built and maintained independently by <a href="https://github.com/Dora-z/TuneFree_Mac" target="_blank" rel="noopener">Dora-z</a></b>. It is not a port of this project: instead of injecting into a process, it reimplements the decryption locally, and for the newer <code>musicex</code> files it reads the local QQ Music login and asks the official API for the per-song key. Source, installers and the issue tracker are in that repo.</p>
@@ -491,6 +499,7 @@
       the decryptor started as <a href="https://github.com/ericjuice/music-decryptor" target="_blank" rel="noopener">ericjuice/music-decryptor</a> ·
       packaged with <a href="https://pyinstaller.org/" target="_blank" rel="noopener">PyInstaller</a> ·
       first GUI by "Moli" · testing by "Huahong Dakuci" · "Sparkle" contributed the play-once workaround ·
+      "Ajing" reported the memory exhaustion after ~100 batch conversions, which led to chunked decryption in 3.1.3 · "GuerGuaZhang" contributed the exit-code, file-name splitting, tag-priority and decrypt-only changes, adopted in 3.1.3 ·
       icon and naming from "Doubao" · documentation framework organised with DeepSeek ·
       macOS version implemented and maintained independently by <a href="https://github.com/Dora-z/TuneFree_Mac" target="_blank" rel="noopener">Dora-z</a> ·
       and years of format knowledge from the Unlock Music community.

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import os
+import random
 
 from PySide6.QtCore import QObject, QUrl, Signal
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
@@ -28,6 +29,8 @@ class Player(QObject):
         self._paths = []
         self._index = -1
         self._volume = 80
+        self._shuffle = False
+        self._history = []
 
         self.audio = QAudioOutput(self)
         self.audio.setVolume(self._volume / 100.0)
@@ -103,6 +106,8 @@ class Player(QObject):
     def next(self, wrap=True):
         if not self._paths:
             return False
+        if self._shuffle:
+            return self._play_random()
         nxt = self._index + 1
         if nxt >= len(self._paths):
             if not wrap:
@@ -113,10 +118,45 @@ class Player(QObject):
     def prev(self):
         if not self._paths:
             return False
+        if self._shuffle:
+            if self._history:
+                return self.play_index(self._history.pop())
+            return self._play_random()
         prv = self._index - 1
         if prv < 0:
             prv = len(self._paths) - 1
         return self.play_index(prv)
+
+    def _play_random(self):
+        """随机挑一首和当前不同的；上一首留给 prev 回退。"""
+        count = len(self._paths)
+        if count <= 1:
+            return self.play_index(0)
+        if 0 <= self._index < count:
+            self._history.append(self._index)
+            del self._history[:-100]
+        pick = self._index
+        for _ in range(24):
+            choice = random.randrange(count)
+            if choice != self._index:
+                pick = choice
+                break
+        return self.play_index(pick)
+
+    # ---------- 播放顺序 ----------
+
+    def set_shuffle(self, on):
+        """True = 随机播放，False = 顺序播放。"""
+        self._shuffle = bool(on)
+        if not self._shuffle:
+            self._history = []
+        return self._shuffle
+
+    def shuffle(self):
+        return self._shuffle
+
+    def toggle_shuffle(self):
+        return self.set_shuffle(not self._shuffle)
 
     # ---------- 参数 ----------
 

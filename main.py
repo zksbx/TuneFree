@@ -11,7 +11,8 @@ on_event(kind, payload) 的 kind：
     "item"     单曲状态，payload = {"track": Track, "state": str, "message": str}
     "progress" 阶段进度，payload = {"phase": str, "done": int, "total": int}
     "log"      一行日志，payload = {"level": "info"/"error", "message": str}
-    "summary"  全部结束，payload = {"ok": int, "fail": int, "skip": int, "elapsed": float}
+    "summary"  全部结束，payload = {"ok": int, "fail": int, "skip": int, "elapsed": float,
+                                     "paused": bool, "pause_reason": str}
 """
 
 from __future__ import annotations
@@ -37,7 +38,7 @@ from converter import force_remove
 try:  # 版本号统一放在 version.py，打包时如果没带上就退回内置值
     from version import VERSION
 except Exception:
-    VERSION = "3.1.2"
+    VERSION = "3.1.3"
 
 # 打包成窗口程序后，父进程自己没有控制台；这时每启动一次 ffmpeg（控制台程序），
 # Windows 都会给它新建一个控制台窗口 —— 就是用户看到的一闪而过的黑框。
@@ -50,33 +51,51 @@ DEFAULT_BITRATE = "320k"
 
 
 # -------------------- 强制 UTF-8 输出 --------------------
-def _reopen_fd(fd, name):
-    """把第 fd 号文件描述符包成 UTF-8 文本流；fd 不可用返回 None。"""
+def _usable_stream(stream, mode="w"):
+    """把已有流包成 UTF-8，并确认真的写得进去；不能写就退回空设备。
+
+    打包成窗口程序（--noconsole）时 sys.stdout 常常是 None，或者指向一个
+    已经失效的句柄。后者会在解释器退出时刷新失败，让进程以退出码 120 结束，
+    所以这里先写一个空串试一下，失败就换成 os.devnull。
+    """
+    if stream is None:
+        return open(os.devnull, mode, encoding="utf-8", errors="replace")
     try:
-        return open(fd, mode="w", encoding="utf-8", errors="replace", closefd=False)
+        fd = stream.fileno()
+    except (OSError, ValueError, AttributeError):
+        fd = None
+    if fd is not None:
+        try:
+            wrapped = open(fd, mode, encoding="utf-8", errors="replace", closefd=False)
+            wrapped.write("")
+            wrapped.flush()
+            return wrapped
+        except (OSError, ValueError):
+            pass
+    try:
+        stream.write("")
+        stream.flush()
+        return stream
     except (OSError, ValueError):
-        return None
+        return open(os.devnull, mode, encoding="utf-8", errors="replace")
 
 
 def _force_utf8_stdio():
     """窗口模式打包（--noconsole）时 sys.stdout 常常是 None。
 
-    这时 print() 会静默丢弃输出，连 @@PROGRESS 进度协议也发不出去，
-    界面上的进度条就永远不动。所以这里先试着按 fd 重新打开，拿不到再退回另一个流。
+    print() 会静默丢弃输出，连 @@PROGRESS 进度协议也发不出去。这里保证
+    stdout / stderr 一定指向一个写得进去的 UTF-8 流；没有控制台就写空设备。
     """
-    if sys.stdout is None:
-        sys.stdout = _reopen_fd(1, "stdout") or sys.stderr or open(os.devnull, "w")
-    if sys.stderr is None:
-        sys.stderr = _reopen_fd(2, "stderr") or sys.stdout or open(os.devnull, "w")
+    sys.stdout = _usable_stream(getattr(sys, "stdout", None))
+    sys.stderr = _usable_stream(getattr(sys, "stderr", None)) or sys.stdout
 
-    for name in ("stdout", "stderr"):
-        stream = getattr(sys, name, None)
-        if stream is None:
-            continue
-        try:
-            setattr(sys, name, open(stream.fileno(), mode="w", encoding="utf-8", errors="replace"))
-        except (OSError, ValueError, AttributeError):
-            pass
+
+def _safe_print(line):
+    """往控制台写一行；打包成窗口程序后可能没有可用的 stdout，写不出去就跳过。"""
+    try:
+        print(line, flush=True)
+    except (OSError, ValueError):
+        pass
 
 
 if sys.platform == "win32":
@@ -116,15 +135,30 @@ def ffmpeg_path():
 
 def emit_progress(phase, done, total):
     """进度协议：界面认 `@@PROGRESS 解密 3/10` 这一行（不写进日志）。"""
-    print("@@PROGRESS %s %d/%d" % (phase, done, total), flush=True)
+    _safe_print("@@PROGRESS %s %d/%d" % (phase, done, total))
 
 
 # -------------------- 任务执行器 --------------------
+class MemoryLow(RuntimeError):
+    """QQ音乐 32 位地址空间不够了，需要重启它再继续。"""
+
+
+# hook 里内存分配失败的原话片段，用来把「内存不足」和「文件打不开」区分开
+_MEM_LOW_HINT = "内存用满了"
+# 每转这么多首探一次地址空间；探测本身只是申请再释放一块 192MB
+_MEM_PROBE_EVERY = 10
+_MEM_PROBE_SIZE = 192 * 1024 * 1024
+
+
+def _is_mem_low(exc):
+    return _MEM_LOW_HINT in str(exc)
+
+
 class Runner:
     """一次完整的「解密 + 转码」任务。"""
 
     def __init__(self, input_dir, flac_dir=None, mp3_dir=None, bitrate=DEFAULT_BITRATE,
-                 keep_flac=False, no_mp3=False, force=False, workers=None,
+                 keep_flac=False, no_mp3=False, force=False, workers=None, ogg_dir=None,
                  on_event=None, hook_path=None, session=None):
         self.input_dir = os.path.abspath(input_dir)
         self.flac_dir = os.path.abspath(flac_dir) if flac_dir else os.path.join(self.input_dir, "output", "flac")
@@ -132,17 +166,23 @@ class Runner:
         self.bitrate = sanitize_bitrate(bitrate)
         self.keep_flac = bool(keep_flac)
         self.no_mp3 = bool(no_mp3)
+        # .mgg 解出来就是 Ogg，只解密时单独放 ogg 目录，不跟 FLAC 混在一起
+        self.ogg_dir = ogg_dir or os.path.join(
+            os.path.dirname(os.path.abspath(mp3_dir)), "ogg")
         self.force = bool(force)
         self.workers = workers
         self.on_event = on_event
         self.hook_path = hook_path or qsession.default_hook_path()
         self._tmp_seq = itertools.count()
+        self._mem_probe = 0
+        self._conv_done = 0
+        self._conv_total = 0
         self._preset_session = session
 
         self.session = None
         self.tracks = []
         self.cancelled = False
-        self.summary = {"ok": 0, "fail": 0, "skip": 0, "elapsed": 0.0}
+        self.summary = {"ok": 0, "fail": 0, "skip": 0, "elapsed": 0.0, "paused": False}
 
     # ---------- 事件 ----------
     def _emit(self, kind, payload):
@@ -199,6 +239,9 @@ class Runner:
     # ---------- 执行 ----------
     def _target_paths(self, track):
         stem = Path(track.path).stem
+        if self.no_mp3 and track.plain_ext == ".ogg":
+            # 只解密：Ogg 直接落到 ogg 目录，不经过转码
+            return os.path.join(self.ogg_dir, stem + ".ogg"), ""
         flac_path = os.path.join(self.flac_dir, stem + track.plain_ext)
         mp3_path = os.path.join(self.mp3_dir, stem + ".mp3")
         return flac_path, mp3_path
@@ -206,21 +249,39 @@ class Runner:
     def _decrypt_one(self, track, dst):
         """解一首，直接落到最终路径。
 
-        第一选择是让 QQ音乐在它自己的进程里写盘（hook 里走 kernel32）：几十 MB
-        不用跨进程搬一遍，中文文件名也不会炸。这一步失败才退回老路 —— 先用
-        英文临时名写盘再改名（frida 的 File 写不了非 ASCII 文件名，实测中文
-        文件名会抛 Illegal byte sequence）。
+        三条路径，从省内存的往下退：
+        1. 流式解密 —— hook 里读 4MB 写 4MB，缓冲固定 4MB，转多少首都不涨地址空间；
+        2. 整块解密 —— 万一某个 QQ音乐 版本的 Read 不支持随机偏移，退回整首一次读；
+        3. decrypt_file —— 结果先回传 Frida 再落盘，只在进程内写盘失败时用。
+
+        每 10 首探一次 QQ音乐 的地址空间。快满了就抛 MemoryLow 把整轮停下来：
+        32 位进程转一百来首 SQ 会把 4GB 用完，提前停比转一半突然报「文件打不开」体面。
         """
         session = self.session
         if session is None:
             raise qsession.SessionError("还没有连接到 QQ音乐")
+
+        self._check_memory(session)
 
         try:
             wrote = session.decrypt(track.path, dst)
             if wrote and os.path.isfile(dst) and os.path.getsize(dst) > 0:
                 return
         except Exception as e:
-            logging.debug("直接写盘失败，改用兜底路径：%s", e)
+            if _is_mem_low(e):
+                raise MemoryLow(str(e)) from None
+            logging.debug("流式解密失败，改用整块：%s", e)
+        force_remove(dst)
+
+        try:
+            wrote = session.decrypt_whole(track.path, dst)
+            if wrote and os.path.isfile(dst) and os.path.getsize(dst) > 0:
+                logging.info("流式解密没解出来，这次用整块模式：%s", track.name)
+                return
+        except Exception as e:
+            if _is_mem_low(e):
+                raise MemoryLow(str(e)) from None
+            logging.debug("整块解密也失败，改用兜底路径：%s", e)
         force_remove(dst)
 
         folder = os.path.dirname(dst) or "."
@@ -230,8 +291,10 @@ class Runner:
             session.decrypt_file(track.path, tmp)
             os.replace(tmp, dst)
             return
-        except Exception:
+        except Exception as e:
             force_remove(tmp)
+            if _is_mem_low(e):
+                raise MemoryLow(str(e)) from None
             # 目录本身带非英文字符时退到 %TEMP% 再来一次
             tmp = os.path.join(tempfile.gettempdir(), "tf_%s%s" % (token, track.plain_ext))
             try:
@@ -240,12 +303,25 @@ class Runner:
             finally:
                 force_remove(tmp)
 
+    def _check_memory(self, session):
+        """每 10 首问一次 QQ音乐：还能不能申请 192MB。"""
+        self._mem_probe += 1
+        if self._mem_probe % _MEM_PROBE_EVERY:
+            return
+        probe = getattr(session, "can_alloc", None)
+        if probe is None or probe(_MEM_PROBE_SIZE):
+            return
+        raise MemoryLow(
+            "QQ音乐的内存用满了（32 位进程地址空间上限约 4GB）。"
+            "请重启 QQ音乐，再点「开始转换」继续；已经转换好的文件会跳过，不会重做。"
+        )
+
     def run(self, tracks=None):
         """跑完整个任务。返回 summary。"""
         global _last_inject_error
         started = time.time()
         self.cancelled = False
-        result = {"ok": 0, "fail": 0, "skip": 0, "elapsed": 0.0}
+        result = {"ok": 0, "fail": 0, "skip": 0, "elapsed": 0.0, "paused": False}
 
         if not os.path.isdir(self.input_dir):
             self._log("error", "输入目录不存在：%s" % self.input_dir)
@@ -278,6 +354,8 @@ class Runner:
         targets.sort(key=_size_of, reverse=True)
 
         total = len(targets)
+        self._conv_done = 0
+        self._conv_total = total
         if total == 0:
             self._log("info", "没有需要处理的文件")
             result["elapsed"] = round(time.time() - started, 2)
@@ -285,7 +363,7 @@ class Runner:
             self._emit("summary", result)
             return result
 
-        for folder in (self.flac_dir, self.mp3_dir):
+        for folder in (self.flac_dir, self.mp3_dir, self.ogg_dir if self.no_mp3 else self.mp3_dir):
             try:
                 os.makedirs(folder, exist_ok=True)
             except OSError as e:
@@ -306,8 +384,8 @@ class Runner:
 
                 flac_path, mp3_path = self._target_paths(track)
                 try:
-                    if self.no_mp3 and track.plain_ext == ".flac":
-                        # 只要 FLAC：直接解到目标位置，不转码也不算跳过
+                    if self.no_mp3:
+                        # 只解密：直接解到目标位置（FLAC 或 Ogg），不转码也不算跳过
                         if os.path.exists(flac_path) and not self.force:
                             result["skip"] += 1
                             track.status = "skipped"
@@ -341,9 +419,20 @@ class Runner:
                         if not keep_src:
                             force_remove(flac_path)
                         self._emit("item", {"track": track, "state": "skip", "message": track.message})
+                        self._conv_done += 1
+                        self._emit("progress", {"phase": "转码", "done": self._conv_done,
+                                                "total": self._conv_total})
                     else:
                         conv.submit(job)
                         self._emit("item", {"track": track, "state": "convert", "message": "等待转码"})
+                except MemoryLow as e:
+                    result["paused"] = True
+                    result["pause_reason"] = str(e)
+                    track.status = "failed"
+                    track.message = "内存不足，已暂停"
+                    self._log("warn", str(e))
+                    self._emit("item", {"track": track, "state": "fail", "message": track.message})
+                    break
                 except Exception as e:
                     result["fail"] += 1
                     track.status = "failed"
@@ -365,11 +454,16 @@ class Runner:
         result["elapsed"] = round(time.time() - started, 2)
         self.summary = result
 
-        self._log("info", "处理完成：成功 %d 个，失败 %d 个，跳过 %d 个，用时 %.1f 秒"
-                  % (result["ok"], result["fail"], result["skip"], result["elapsed"]))
-        if result["fail"]:
-            self._log("info", "失败的大多是音质不支持：TuneFree 只能处理标准/HQ/SQ，"
-                              "臻品音质、臻品母带、杜比全景声都解不开")
+        if result.get("paused"):
+            self._log("warn", "任务已暂停：成功 %d 个，跳过 %d 个，用时 %.1f 秒"
+                      % (result["ok"], result["skip"], result["elapsed"]))
+            self._log("warn", result.get("pause_reason", "QQ音乐内存不足"))
+        else:
+            self._log("info", "处理完成：成功 %d 个，失败 %d 个，跳过 %d 个，用时 %.1f 秒"
+                      % (result["ok"], result["fail"], result["skip"], result["elapsed"]))
+            if result["fail"]:
+                self._log("info", "失败的大多是音质不支持：TuneFree 只能处理标准/HQ/SQ，"
+                                  "臻品音质、臻品母带、杜比全景声都解不开")
         self._emit("summary", result)
         return result
 
@@ -379,20 +473,22 @@ class Runner:
         if kind == "start" and track is not None:
             track.status = "working"
             self._emit("item", {"track": track, "state": "convert", "message": "正在转码"})
-        elif kind == "done" and track is not None:
-            track.status = "done"
-            track.message = "已完成"
-            track.output = job.dst
-            self._emit("item", {"track": track, "state": "done", "message": "已完成"})
-        elif kind == "skip" and track is not None:
-            track.status = "skipped"
-            track.message = "MP3 已存在，跳过"
-            self._emit("item", {"track": track, "state": "skip", "message": track.message})
-        elif kind == "fail" and track is not None:
-            track.status = "failed"
-            track.message = job.message or "转码失败"
-            self._log("error", "%s 转码失败：%s" % (track.name, track.message))
-            self._emit("item", {"track": track, "state": "fail", "message": track.message})
+        elif kind in ("done", "skip", "fail") and track is not None:
+            if kind == "done":
+                track.status = "done"
+                track.message = "已完成"
+                track.output = job.dst
+            elif kind == "skip":
+                track.status = "skipped"
+                track.message = "MP3 已存在，跳过"
+            else:
+                track.status = "failed"
+                track.message = job.message or "转码失败"
+                self._log("error", "%s 转码失败：%s" % (track.name, track.message))
+            self._emit("item", {"track": track, "state": kind, "message": track.message})
+            self._conv_done += 1
+            self._emit("progress", {"phase": "转码", "done": self._conv_done,
+                                    "total": self._conv_total})
 
     def cancel(self):
         self.cancelled = True
@@ -433,15 +529,15 @@ def _print_event(kind, payload):
     """命令行模式把事件打到控制台。"""
     if kind == "log":
         prefix = "错误" if payload.get("level") == "error" else "信息"
-        print("[%s] %s" % (prefix, payload.get("message", "")), flush=True)
+        _safe_print("[%s] %s" % (prefix, payload.get("message", "")))
     elif kind == "item":
         track = payload.get("track")
         state = payload.get("state")
         if state in ("done", "fail", "skip") and track is not None:
-            print("@@ITEM %s %s %s" % (state, track.name, payload.get("message", "")), flush=True)
+            _safe_print("@@ITEM %s %s %s" % (state, track.name, payload.get("message", "")))
     elif kind == "conn":
         if not payload.get("ok"):
-            print("[错误] %s" % payload.get("message", ""), flush=True)
+            _safe_print("[错误] %s" % payload.get("message", ""))
 
 
 def main(argv=None):

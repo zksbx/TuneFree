@@ -27,7 +27,7 @@ class Track:
     __slots__ = ("index", "path", "name", "ext", "size", "kind", "duration",
                  "sample_rate", "channels", "bits", "cover_path", "status", "message",
                  "title", "artist", "plain_ext", "output", "output_size", "is_out",
-                 "out_kind", "dupes")
+                 "out_kind", "dupes", "tag_meta", "album")
 
     def __init__(self, path, index=0, name_format="title_artist"):
         self.index = index
@@ -44,6 +44,8 @@ class Track:
         self.status = "pending"      # pending / ready / working / done / failed / skipped
         self.message = ""
         self.title, self.artist = lyrics.split_name(self.name, name_format)
+        self.tag_meta = False        # 标题/歌手是否来自文件内标签（而非文件名）
+        self.album = ""
         self.plain_ext = ".flac" if self.kind == "flac" else ".ogg"
         self.output = ""
         self.output_size = 0
@@ -145,6 +147,15 @@ def fill_meta(track, session, cover_dir):
 
     track.kind = info.kind or track.kind
     track.plain_ext = ".flac" if track.kind == "flac" else ".ogg"
+    # 文件头里有标签就用标签：比按文件名猜「歌手 - 歌名」可靠，
+    # 也省得用户为了命名格式在设置里来回切。文件名只在没标签时兜底。
+    track.album = info.album or ""
+    if info.title or info.artist:
+        track.tag_meta = True
+        if info.title:
+            track.title = info.title
+        if info.artist:
+            track.artist = info.artist
     track.duration = info.duration
     track.sample_rate = info.sample_rate
     track.channels = info.channels

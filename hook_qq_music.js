@@ -1,11 +1,14 @@
 /**
  * TuneFree - QQ音乐 mflac / mgg 解密钩子
  *
- * 由 main.py 通过 Frida 注入到 QQMusic.exe，对外暴露 rpc.exports.decrypt(源文件, 输出文件)。
+ * 由 main.py 通过 Frida 注入到 QQMusic.exe，对外暴露 rpc.exports。
  *
- * 与旧版的差别：所有导出符号都做存在性校验，打开文件 / 取大小 / 读数据都检查返回值。
- * 这样 QQ音乐更新导致符号失效时，报出来的是「版本不匹配」这种能看懂的原因，
- * 而不是以前那句谁也看不懂的 invalid size。
+ * 与旧版的差别：
+ * 1. 所有导出符号都做存在性校验，报错能看懂；
+ * 2. 解密缓冲不再用 Memory.alloc + free（堆不匹配会静默失效，地址空间只增不减，
+ *    32 位 QQ音乐转一百来首 SQ 就会耗尽 4GB），改成 VirtualAlloc / VirtualFree；
+ * 3. 解密改成「读 4MB → 写 4MB」流式，峰值占用跟单曲大小无关；
+ * 4. 另开 probealloc()，让 Python 侧在批量转换中途探测地址空间余量。
  */
 const TARGET_DLL = "QQMusicCommon.dll";
 
@@ -21,7 +24,7 @@ var SYMBOLS = {
 var BOUND = null;
 var OBJECT_SIZE = 0x28;          // EncAndDesMediaFile 的实例大小，按当前版本实测
 var MAX_FILE_SIZE = 512 * 1024 * 1024;
-var READ_CHUNK = 4 * 1024 * 1024;  // 单次 Read 的上限，分块循环读到末尾
+var READ_CHUNK = 4 * 1024 * 1024;  // 单次 Read / 单块缓冲的上限
 
 /** 把 5 个符号全部找出来并绑定成 NativeFunction，只在第一次调用时做。 */
 function bindSymbols() {
@@ -70,6 +73,61 @@ function bindSymbols() {
   }
 })();
 
+/* ---------- 内存：VirtualAlloc / VirtualFree ----------
+ * 旧版用 Frida 的 Memory.alloc 分配整首，再用 Module.findExportByName(null, "free")
+ * 去还。那个 free 是从所有已加载模块里碰运气搜到的，跟 Frida 自己的堆未必是同一个，
+ * 还不上就静默失效 —— 每转一首地址空间只增不减。
+ * VirtualAlloc(MEM_COMMIT | MEM_RESERVE) 一定拿到全新的地址段，
+ * VirtualFree(MEM_RELEASE) 一定整段还给系统，没有堆碎片问题。
+ */
+var MEM_COMMIT = 0x1000;
+var MEM_RESERVE = 0x2000;
+var MEM_RELEASE = 0x8000;
+var PAGE_READWRITE = 0x04;
+var VALLOC = null;
+
+var MEM_LOW_MSG =
+  "QQ音乐的内存用满了（32 位进程地址空间上限约 4GB）。" +
+  "请重启 QQ音乐，再点「开始转换」继续；已经转换好的文件会跳过，不会重做。";
+
+function bindValloc() {
+  if (VALLOC !== null) {
+    return VALLOC;
+  }
+  var alloc = Module.findExportByName("kernel32.dll", "VirtualAlloc");
+  var release = Module.findExportByName("kernel32.dll", "VirtualFree");
+  if (alloc === null || release === null) {
+    throw new Error("找不到 kernel32 的 VirtualAlloc，无法分配解密缓冲");
+  }
+  VALLOC = {
+    alloc: new NativeFunction(alloc, "pointer", ["pointer", "uint32", "uint32", "uint32"]),
+    free: new NativeFunction(release, "bool", ["pointer", "uint32", "uint32"]),
+  };
+  return VALLOC;
+}
+
+/** 申请一块可读写内存；地址空间不够时抛中文错误（调用方会原样显示给用户）。 */
+function valloc(size) {
+  var v = bindValloc();
+  var p = v.alloc(ptr(0), size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+  if (p === null || p.equals(ptr(0))) {
+    throw new Error(MEM_LOW_MSG);
+  }
+  return p;
+}
+
+/** 整段还给系统。失败也不影响已经写好的文件。 */
+function vfree(p) {
+  if (p === null) {
+    return;
+  }
+  try {
+    bindValloc().free(p, 0, MEM_RELEASE);
+  } catch (e) {
+    /* 还不了就算了 */
+  }
+}
+
 /* ---------- 直接写盘 ----------
  * 老做法是把整首歌 readByteArray 拷到 Frida 侧，再让 Frida 写文件：
  * 几十 MB 要跨进程搬一次，写文件的是注入方，杀软和「慢」都出在这。
@@ -80,7 +138,6 @@ var CREATE_ALWAYS = 2;
 var FILE_ATTRIBUTE_NORMAL = 0x80;
 var WRITE_CHUNK = 4 * 1024 * 1024;
 var K32 = null;
-var FREE = null;
 
 function bindKernel32() {
   if (K32 !== null) {
@@ -101,15 +158,22 @@ function bindKernel32() {
   return K32;
 }
 
-/** 把目标进程里的这块内存直接写成文件，返回写入字节数。 */
-function writeInProcess(buffer, size, path) {
+/** 在目标进程里新建文件，返回句柄；失败抛错。 */
+function createOutFile(path) {
   var k = bindKernel32();
   var wide = Memory.allocUtf16String(path);
   var handle = k.create(wide, GENERIC_WRITE, 0, ptr(0), CREATE_ALWAYS,
                         FILE_ATTRIBUTE_NORMAL, ptr(0));
-  if (handle.equals(ptr("-1"))) {
+  if (handle === null || handle.equals(ptr(0)) || handle.equals(ptr("-1"))) {
     throw new Error("QQ音乐写不了这个位置：" + path);
   }
+  return handle;
+}
+
+/** 把目标进程里的这块内存直接写成文件，返回写入字节数。 */
+function writeInProcess(buffer, size, path) {
+  var k = bindKernel32();
+  var handle = createOutFile(path);
   var done = Memory.alloc(4);
   var offset = 0;
   try {
@@ -126,49 +190,85 @@ function writeInProcess(buffer, size, path) {
   return offset;
 }
 
-/** 用完把 Memory.alloc 的缓冲还回去，否则连续解密几十首会把 QQ音乐内存撑大。 */
-function releaseBuffer(buffer) {
-  if (FREE === null) {
-    var addr = Module.findExportByName(null, "free");
-    FREE = addr === null ? false : new NativeFunction(addr, "void", ["pointer"]);
+/** 打开一个加密文件并取出大小，供下面几个入口复用。 */
+function openSource(fns, obj, srcFileName) {
+  var nameUtf16 = Memory.allocUtf16String(srcFileName);
+  if (!fns.open(obj, nameUtf16, 1, 0)) {
+    throw new Error(
+      "打不开这个文件，可能还没下载完整，或者需要先在 QQ音乐里播放一遍再试：" + srcFileName
+    );
   }
-  if (FREE !== false) {
-    try {
-      FREE(buffer);
-    } catch (e) {
-      /* 还不了就算了，别影响已经写好的文件 */
+  var size = fns.getSize(obj);
+  if (!size || size < 4) {
+    throw new Error("读到的文件大小为 " + size + " 字节，文件可能已损坏：" + srcFileName);
+  }
+  if (size > MAX_FILE_SIZE) {
+    throw new Error("文件过大（" + size + " 字节），超出 TuneFree 的处理范围：" + srcFileName);
+  }
+  return size;
+}
+
+/* ---------- 流式解密（默认路径） ----------
+ * 只申请一块 4MB 的缓冲：读一块、写一块、复用，写完释放。
+ * 峰值占用跟单曲大小无关，转几百首也不会把地址空间吃满。
+ */
+function decryptStream(srcFileName, dstFileName) {
+  var fns = bindSymbols();
+  var k = bindKernel32();
+  var obj = Memory.alloc(OBJECT_SIZE);
+  fns.ctor(obj);
+
+  var buf = null;
+  var handle = null;
+  try {
+    var size = openSource(fns, obj, srcFileName);
+    handle = createOutFile(dstFileName);
+    var done = Memory.alloc(4);
+    buf = valloc(Math.min(size, READ_CHUNK));
+
+    var offset = 0;
+    while (offset < size) {
+      var want = Math.min(size - offset, READ_CHUNK);
+      var got = fns.read(obj, buf, want, offset);
+      if (!got) {
+        throw new Error("解密读取在第 " + offset + " 字节处中断：" + srcFileName);
+      }
+      if (!k.write(handle, buf, got, done, ptr(0))) {
+        throw new Error("写文件中途失败：" + dstFileName);
+      }
+      offset += got;
     }
+    if (offset !== size) {
+      throw new Error(
+        "解密出来的字节数不对（" + offset + " / " + size + "），文件可能不完整：" + srcFileName
+      );
+    }
+    return offset;
+  } finally {
+    if (buf !== null) {
+      vfree(buf);
+    }
+    if (handle !== null) {
+      k.close(handle);
+    }
+    fns.dtor(obj);
   }
 }
 
-/** 解密到目标进程的一块内存里，返回 {buffer, size}。 */
+/* ---------- 整块解密（兜底路径） ----------
+ * 保留给 decryptwhole 用：万一某个 QQ音乐 版本的 Read 不是随机访问，
+ * 流式分块的偏移会对不上，Python 侧会退回到这里。
+ */
 function decryptToBuffer(srcFileName) {
   var fns = bindSymbols();
-
   var obj = Memory.alloc(OBJECT_SIZE);
   fns.ctor(obj);
 
   var buf = null;
   try {
-    var nameUtf16 = Memory.allocUtf16String(srcFileName);
-    var opened = fns.open(obj, nameUtf16, 1, 0);
-    if (!opened) {
-      throw new Error(
-        "打不开这个文件，可能还没下载完整，或者需要先在 QQ音乐里播放一遍再试：" + srcFileName
-      );
-    }
-
-    var size = fns.getSize(obj);
-    if (!size || size < 4) {
-      throw new Error("读到的文件大小为 " + size + " 字节，文件可能已损坏：" + srcFileName);
-    }
-    if (size > MAX_FILE_SIZE) {
-      throw new Error("文件过大（" + size + " 字节），超出 TuneFree 的处理范围：" + srcFileName);
-    }
-
-    buf = Memory.alloc(size);
+    var size = openSource(fns, obj, srcFileName);
+    buf = valloc(size);
     var offset = 0;
-    // 分块读，避免某些版本一次性返回不足量时把音频截断
     while (offset < size) {
       var want = Math.min(size - offset, READ_CHUNK);
       var got = fns.read(obj, buf.add(offset), want, offset);
@@ -183,7 +283,7 @@ function decryptToBuffer(srcFileName) {
     return { buffer: buf, size: offset };
   } catch (e) {
     if (buf !== null) {
-      releaseBuffer(buf);
+      vfree(buf);
     }
     throw e;
   } finally {
@@ -193,24 +293,31 @@ function decryptToBuffer(srcFileName) {
 
 rpc.exports = {
   /**
-   * 解密单个文件，并让 QQ音乐自己把结果写到 dstFileName。
-   * 数据不经过 Frida，几十 MB 的跨进程拷贝和「注入方写盘」都省了。
+   * 流式解密：读 4MB → 写 4MB，缓冲固定 4MB 复用。
    * @param {string} srcFileName 加密文件路径（.mflac / .mgg）
    * @param {string} dstFileName 解密结果写到哪（可以直接是中文名）
    * @returns {number} 实际写出的字节数
    */
   decrypt: function (srcFileName, dstFileName) {
+    return decryptStream(srcFileName, dstFileName);
+  },
+
+  /**
+   * 整块解密后写盘，流式失败时回退用。
+   * 会把整首歌申请在内存里，转得多了仍然吃地址空间。
+   */
+  decryptwhole: function (srcFileName, dstFileName) {
     var part = decryptToBuffer(srcFileName);
     try {
       return writeInProcess(part.buffer, part.size, dstFileName);
     } finally {
-      releaseBuffer(part.buffer);
+      vfree(part.buffer);
     }
   },
 
   /**
    * 老写法：解密结果先读回 Frida 再写文件。
-   * 只在 decrypt 写不进去时兜底（目标目录权限特殊、或者拿不到 kernel32）。
+   * 只在进程内写盘失败时兜底（目标目录权限特殊、或者拿不到 kernel32）。
    */
   decryptfile: function (srcFileName, tmpFileName) {
     var part = decryptToBuffer(srcFileName);
@@ -218,7 +325,7 @@ rpc.exports = {
     try {
       data = part.buffer.readByteArray(part.size);
     } finally {
-      releaseBuffer(part.buffer);
+      vfree(part.buffer);
     }
     var tmpFile = new File(tmpFileName, "wb");
     try {
@@ -232,6 +339,8 @@ rpc.exports = {
 
   /**
    * 只解密文件开头的一段，用于列表快速读取封面 / 时长，不必整首解密。
+   * 缓冲用 VirtualAlloc 申请、读出来立刻释放 —— 旧版这里完全不释放，
+   * 扫一遍上千首能白吃几百 MB。
    * @param {string} srcFileName 加密文件路径
    * @param {number} limit 最多读多少字节
    * @returns {ArrayBuffer} 解密后的字节
@@ -240,6 +349,7 @@ rpc.exports = {
     var fns = bindSymbols();
     var obj = Memory.alloc(OBJECT_SIZE);
     fns.ctor(obj);
+    var buf = null;
     try {
       var nameUtf16 = Memory.allocUtf16String(srcFileName);
       if (!fns.open(obj, nameUtf16, 1, 0)) {
@@ -250,13 +360,16 @@ rpc.exports = {
         throw new Error("读到的文件大小为 0：" + srcFileName);
       }
       var want = Math.min(size, limit || 262144);
-      var buf = Memory.alloc(want);
+      buf = valloc(want);
       var got = fns.read(obj, buf, want, 0);
       if (!got) {
         throw new Error("读取文件头返回 0 字节：" + srcFileName);
       }
       return buf.readByteArray(got);
     } finally {
+      if (buf !== null) {
+        vfree(buf);
+      }
       fns.dtor(obj);
     }
   },
@@ -269,6 +382,7 @@ rpc.exports = {
     var fns = bindSymbols();
     var obj = Memory.alloc(OBJECT_SIZE);
     fns.ctor(obj);
+    var buf = null;
     try {
       var nameUtf16 = Memory.allocUtf16String(srcFileName);
       if (!fns.open(obj, nameUtf16, 1, 0)) {
@@ -280,14 +394,38 @@ rpc.exports = {
       }
       var want = Math.min(size, limit || 4096);
       var offset = size - want;
-      var buf = Memory.alloc(want);
+      buf = valloc(want);
       var got = fns.read(obj, buf, want, offset);
       if (!got) {
         throw new Error("读取文件尾返回 0 字节：" + srcFileName);
       }
       return buf.readByteArray(got);
     } finally {
+      if (buf !== null) {
+        vfree(buf);
+      }
       fns.dtor(obj);
+    }
+  },
+
+  /**
+   * 地址空间余量探测：试着申请一块再立刻还回去。
+   * 批量转换途中每转若干首问一次，失败就说明该重启 QQ音乐了。
+   * @param {number} bytes 想申请的字节数
+   * @returns {boolean} 申请成功为 true
+   */
+  probealloc: function (bytes) {
+    try {
+      var v = bindValloc();
+      var size = bytes || 192 * 1024 * 1024;
+      var p = v.alloc(ptr(0), size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+      if (p === null || p.equals(ptr(0))) {
+        return false;
+      }
+      v.free(p, 0, MEM_RELEASE);
+      return true;
+    } catch (e) {
+      return false;
     }
   },
 
@@ -297,9 +435,7 @@ rpc.exports = {
       bindSymbols();
       return { ok: true, missing: [] };
     } catch (e) {
-      var m = e.message;
-      return { ok: false, message: m };
+      return { ok: false, message: e.message };
     }
   },
 };
-
