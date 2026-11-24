@@ -14,10 +14,8 @@
 
 [⬇️ 下载最新版](https://github.com/zksbx/TuneFree/releases/latest) · [🌐 官网与使用帮助](https://zksbx.github.io/TuneFree/) · [☁️ 蓝奏云备用下载](https://wwbtj.lanzouc.com/b01d7csi8j)（提取码 `0211`）· 💬 `QQ` 群：1067975918 · [English](README.en.md)
 
-> 🍎 **macOS 版**：由 [Dora-z](https://github.com/Dora-z/TuneFree_Mac) **独立开发维护**（不是本仓库的代码，也不是本项目的移植）。
-> 它走的是另一条路——不注入进程，在本机复现解密算法、读取本机 QQ音乐的登录态取密钥。
-> 下载、问题与建议都在他的仓库：**https://github.com/Dora-z/TuneFree_Mac**
-
+> 🍎 **macOS 版**：由 [Dora-z](https://github.com/Dora-z/TuneFree_Mac) **独立开发维护**
+> [Dora-z/TuneFree_Mac](https://github.com/Dora-z/TuneFree_Mac) 
 ---
 
 ## 它解决什么问题
@@ -222,9 +220,13 @@ docs/                官网（静态单页，中英双语）
 - [music-decryptor](https://github.com/ericjuice/music-decryptor) — 解密脚本的起点
 - [Unlock Music](https://github.com/unlock-music/unlock-music) — 加密格式的解析经验
 - [PyInstaller](https://pyinstaller.org/) — 打包
+<<<<<<< HEAD
 - [Dora-z/TuneFree_Mac](https://github.com/Dora-z/TuneFree_Mac) — macOS 版，独立实现，非本仓库代码
 - **阿精** — 反馈了批量转换约百首后内存耗尽的问题，促成 3.1.3 的分块解密
 - **GuerGuaZhang** — 提交了退出码、文件名拆分、标签优先与「只解密」的改动（PR #7/#8/#9/#10），3.1.3 采纳了其中的思路
+=======
+- [Dora-z/TuneFree_Mac](https://github.com/Dora-z/TuneFree_Mac) — macOS 版，独立实现
+>>>>>>> e43c16d049cc304f576851f87afa58826ca94f3c
 
 ## 支持
 
